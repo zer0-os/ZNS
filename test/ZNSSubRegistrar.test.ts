@@ -3251,10 +3251,9 @@ describe.only("ZNSSubRegistrar", () => {
         priceCorrect + stakeFeeCorrect + protocolFeeCorrect
       );
 
-      const subdomain = new Domain({
-        zns,
-        domainConfig: {
-          owner: lvl3SubOwner,
+      // using direct contract call cause domain.register() prepares and
+      await expect(
+        zns.subRegistrar.connect(lvl3SubOwner).registerSubdomain({
           parentHash: subdomainParent.hash,
           label,
           domainAddress: lvl3SubOwner.address,
@@ -3262,11 +3261,7 @@ describe.only("ZNSSubRegistrar", () => {
           tokenURI: DEFAULT_TOKEN_URI,
           distrConfig: distrConfigEmpty,
           paymentConfig: paymentConfigEmpty,
-        },
-      });
-
-      await expect(
-        subdomain.register()
+        })
       ).to.be.revertedWithCustomError(
         zns.meowToken,
         INSUFFICIENT_ALLOWANCE_ERC_ERR
