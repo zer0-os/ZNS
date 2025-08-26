@@ -74,14 +74,6 @@ export default class Domain {
     return BigInt(this.hash);
   }
 
-  async ownerOfHash () : Promise<string> {
-    return this.zns.registry.getDomainOwner(this.hash);
-  }
-
-  async ownerOfToken () : Promise<string> {
-    return this.zns.domainToken.ownerOf(this.tokenId);
-  }
-
   async getDomainHashFromEvent (domainOwner ?: SignerWithAddress) : Promise<string> {
     const latestBlock = await time.latestBlock();
     const filter = this.zns.rootRegistrar.filters.DomainRegistered(
@@ -222,6 +214,14 @@ export default class Domain {
 
   async getPaymentConfig () : Promise<IPaymentConfig> {
     return this.zns.treasury.paymentConfigs(this.hash);
+  }
+
+  async getDomainOwner () : Promise<string> {
+    return this.zns.registry.getDomainOwner(this.hash);
+  }
+
+  async getOwnerOf () : Promise<string> {
+    return this.zns.domainToken.ownerOf(this.tokenId);
   }
 
   // ------------------------------------------------------
