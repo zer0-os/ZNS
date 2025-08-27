@@ -11,11 +11,11 @@ const logger = getZnsLogger();
 
 const verify = async () => {
   const [ migrationAdmin ] = await hre.ethers.getSigners();
-  
+
   const zns = await getZNS(migrationAdmin);
 
-    const client = await connectToDb();
-  
+  const client = await connectToDb();
+
 
   const rootDomains = await client.collection(ROOT_COLL_NAME).find().toArray() as unknown as Array<Domain>;
   const subdomains = await client.collection(
@@ -27,7 +27,7 @@ const verify = async () => {
   for (const [i,d] of [...rootDomains, ...subdomains].entries()) {
     const owner = await zns.registry.getDomainOwner(d.id);
 
-    if (!d.isRevoked && d.owner.id !== owner) {
+    if (!d.isRevoked && d.domainToken.owner.id.toLowerCase() !== owner.toLowerCase()) {
       incorrectDomains.push(d);
 
       logger.debug(`
@@ -38,7 +38,7 @@ const verify = async () => {
     }
 
     if (i % 50 === 0) {
-      logger.info(`Processed ${i} domains...`)
+      logger.info(`Processed ${i} domains...`);
     }
   }
 
@@ -46,7 +46,7 @@ const verify = async () => {
     logger.error(`Found ${incorrectDomains.length} non-revokd domains with incorrect owners`);
     fs.writeFileSync("incorrect_domains.json", JSON.stringify(incorrectDomains, undefined, 2));
   }
-}
+};
 
 verify().catch(error => {
   getZnsLogger().error("Migration script failed:", error);
