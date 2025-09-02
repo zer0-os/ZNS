@@ -88,9 +88,9 @@ function _setAccessController(address _accessController) internal
 
 Internal function to set the access controller address.
 
-This function checks if the caller has the admin role in the current
+This function checks if the caller has the GOVERNOR_ROLE in the current
 in-state contract and checks if the new access controller address passed is in fact a `ZNSAccessController`
-contract that is already set up with the same caller as an admin. This prevents from setting the wrong address.
+contract that is already set up with the same caller as GOVERNOR. This prevents from setting the wrong address.
 
 #### Parameters
 

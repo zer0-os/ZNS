@@ -15,23 +15,6 @@ they only check `REGISTRAR_ROLE` that can, in theory, be assigned to any other a
 This contract is also called at the last stage of registering subdomains, since it has the common
 logic required to be performed for any level domains.
 
-### rootPricer
-
-```solidity
-contract IZNSPricer rootPricer
-```
-
-Address of the `IZNSPricer` type contract that is used for root domains.
-
-### rootPriceConfig
-
-```solidity
-bytes rootPriceConfig
-```
-
-The price config for the root domains, encoded as bytes.
-This is used by the `IZNSPricer` to determine the price for root domains.
-
 ### treasury
 
 ```solidity
@@ -58,6 +41,31 @@ contract IZNSSubRegistrar subRegistrar
 The `ZNSSubRegistrar` contract that is used to handle subdomain registrations.
 This contract is used to set distribution configs and manage subdomain registrations.
 
+### rootPricer
+
+```solidity
+contract IZNSPricer rootPricer
+```
+
+Address of the `IZNSPricer` type contract that is used for root domains.
+
+### rootPriceConfig
+
+```solidity
+bytes rootPriceConfig
+```
+
+The price config for the root domains, encoded as bytes.
+This is used by the `IZNSPricer` to determine the price for root domains.
+
+### rootPaymentType
+
+```solidity
+enum IDistributionConfig.PaymentType rootPaymentType
+```
+
+The `PaymentType` used for all root domains.
+
 ### constructor
 
 ```solidity
@@ -67,7 +75,7 @@ constructor() public
 ### initialize
 
 ```solidity
-function initialize(address accessController_, address registry_, address rootPricer_, bytes priceConfig_, address treasury_, address domainToken_) external
+function initialize(address accessController_, address registry_, address rootPricer_, bytes priceConfig_, address treasury_, address domainToken_, enum IDistributionConfig.PaymentType rootPaymentType_) external
 ```
 
 Create an instance of the `ZNSRootRegistrar`
@@ -86,6 +94,7 @@ to apply Access Control and ensure only the ADMIN can set the addresses.
 | priceConfig_ | bytes | IZNSPricer pricer config data encoded as bytes for root domains |
 | treasury_ | address | Address of the ZNSTreasury contract |
 | domainToken_ | address | Address of the ZNSDomainToken contract |
+| rootPaymentType_ | enum IDistributionConfig.PaymentType | The payment type for root domains |
 
 ### registerRootDomain
 
@@ -315,6 +324,21 @@ Setter for `ZNSSubRegistrar` contract in state. Only ADMIN can call this functio
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | subRegistrar_ | address | Address of the `ZNSSubRegistrar` contract |
+
+### setRootPaymentType
+
+```solidity
+function setRootPaymentType(enum IDistributionConfig.PaymentType rootPaymentType_) public
+```
+
+Setter for the root payment type in state.
+Only ADMIN in `ZNSAccessController` can call this function.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| rootPaymentType_ | enum IDistributionConfig.PaymentType | The new root payment type to set  > Can be either `PaymentType.DIRECT` or `PaymentType.STAKE` |
 
 ### pauseRegistration
 
