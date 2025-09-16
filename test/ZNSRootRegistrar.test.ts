@@ -543,7 +543,7 @@ describe("ZNSRootRegistrar", () => {
       });
       await domain.registerAndValidateDomain(randomUser);
 
-      expect(await domain.ownerOfToken()).to.eq(randomUser.address);
+      expect(await domain.getOwnerOf()).to.eq(randomUser.address);
     });
 
     it("Stakes and saves the correct amount and token, takes the correct fee and sends fee to Zero Vault", async () => {
@@ -932,7 +932,7 @@ describe("ZNSRootRegistrar", () => {
       await zns.registry.connect(deployer).updateDomainOwner(domain.hash, user.address);
 
       // Verify owner in Registry is changed
-      expect(await domain.ownerOfHash()).to.equal(user.address);
+      expect(await domain.getDomainOwner()).to.equal(user.address);
 
       // Reclaim the Domain Token
       await domain.assignDomainToken({
@@ -941,10 +941,10 @@ describe("ZNSRootRegistrar", () => {
       });
 
       // Verify domain token is now owned by new hash owner
-      expect(await domain.ownerOfToken()).to.equal(user.address);
+      expect(await domain.getOwnerOf()).to.equal(user.address);
 
       // Verify domain is still owned in registry
-      expect(await domain.ownerOfHash()).to.equal(user.address);
+      expect(await domain.getDomainOwner()).to.equal(user.address);
 
       // Verify same amount is staked
       const { amount: stakedAfterReclaim, token: tokenAfterReclaim } = await zns.treasury.stakedForDomain(domain.hash);
@@ -999,7 +999,7 @@ describe("ZNSRootRegistrar", () => {
 
       // Verify domain is not owned in registry
       expect(
-        await domain.ownerOfHash()
+        await domain.getDomainOwner()
       ).to.equal(deployer.address);
     });
 
@@ -1038,14 +1038,14 @@ describe("ZNSRootRegistrar", () => {
         executor: user,
       });
       // Verify domain token is owned
-      expect(await domain.ownerOfToken()).to.equal(user.address);
+      expect(await domain.getOwnerOf()).to.equal(user.address);
 
       // Transfer the domain token back
       await zns.domainToken.connect(user).transferFrom(user.address, deployer.address, domain.tokenId);
 
       // check that hash and token owners changed to the same address
-      expect(await domain.ownerOfToken()).to.equal(deployer.address);
-      expect(await domain.ownerOfHash()).to.equal(deployer.address);
+      expect(await domain.getOwnerOf()).to.equal(deployer.address);
+      expect(await domain.getDomainOwner()).to.equal(deployer.address);
 
       // Assign the Domain token to diff address again
       await domain.assignDomainToken({
@@ -1054,9 +1054,9 @@ describe("ZNSRootRegistrar", () => {
       });
 
       // Verify domain token is owned
-      expect(await domain.ownerOfToken()).to.equal(user.address);
+      expect(await domain.getOwnerOf()).to.equal(user.address);
       // but not the hash
-      expect(await domain.ownerOfHash()).to.equal(deployer.address);
+      expect(await domain.getDomainOwner()).to.equal(deployer.address);
 
       // Verify same amount is staked
       const { amount: stakedAfterReclaim, token: tokenAfterReclaim } = await zns.treasury.stakedForDomain(domain.hash);
@@ -1251,10 +1251,10 @@ describe("ZNSRootRegistrar", () => {
 
       const asBytes = encodePriceConfig(newConfig);
 
-      await domain.setPricerDataForDomain(
-        newConfig,
-        zns.fixedPricer.target as string,
-      );
+      await domain.setPricerDataForDomain({
+        priceConfig: newConfig,
+        pricerContract: zns.fixedPricer.target as string,
+      });
 
       expect(await zns.fixedPricer.getPrice(asBytes, defaultDomain, false)).to.eq(ogPrice);
 
@@ -1263,7 +1263,7 @@ describe("ZNSRootRegistrar", () => {
 
       // Verify token has been burned
       await expect(
-        domain.ownerOfToken()
+        domain.getOwnerOf()
       ).to.be.revertedWithCustomError(
         zns.domainToken,
         NONEXISTENT_TOKEN_ERC_ERR
@@ -1355,7 +1355,7 @@ describe("ZNSRootRegistrar", () => {
       await domain.register();
       const parentDomainHash = await domain.getDomainHashFromEvent(deployer);
 
-      const owner = await domain.ownerOfHash();
+      const owner = await domain.getDomainOwner();
       expect(owner).to.not.equal(user.address);
 
       // Try to revoke domain
@@ -1377,7 +1377,7 @@ describe("ZNSRootRegistrar", () => {
       await domain.register();
 
       expect(
-        await domain.ownerOfHash()
+        await domain.getDomainOwner()
       ).to.not.equal(user.address);
 
       await domain.assignDomainToken({
