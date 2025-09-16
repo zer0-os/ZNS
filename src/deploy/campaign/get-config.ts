@@ -181,10 +181,6 @@ export const validateEnv = (
     requires(!process.env.MONGO_DB_URI.includes("localhost"), MONGO_URI_ERR);
   }
 
-  if (process.env.VERIFY_CONTRACTS === "true") {
-    requires(!!process.env.ETHERSCAN_API_KEY, "Must provide an Etherscan API Key to verify contracts");
-  }
-
   if (process.env.MONITOR_CONTRACTS === "true") {
     requires(!!process.env.TENDERLY_PROJECT_SLUG, "Must provide a Tenderly Project Slug to monitor contracts");
     requires(!!process.env.TENDERLY_ACCOUNT_ID, "Must provide a Tenderly Account ID to monitor contracts");

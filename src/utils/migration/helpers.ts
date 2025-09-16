@@ -187,6 +187,7 @@ const createBatchesSafe = (
   let registrationBatch : Array<any> = [];
 
   for (const [index, domain] of domains.entries()) {
+    logger.info(`Creating batch entry for domain ${domain.label} at index ${index}`);
     const args = {
       name: domain.label,
       domainAddress: domain.address || ZeroAddress,

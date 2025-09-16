@@ -76,7 +76,7 @@ export const migration = async () => {
   if (!safeAddress) throw new Error("No Safe address was provided. Set SAFE_ADDRESS environment variable");
 
   // Modify as needed
-  const rpcUrl = process.env.ZEPHYR_RPC_URL;
+  const rpcUrl = process.env.ZCHAIN_RPC_URL;
   if (!rpcUrl) throw new Error("No RPC URL was provided. Set ..._RPC_URL environment variable for your network");
 
   const chainId = process.env.CHAIN_ID;
@@ -146,7 +146,7 @@ export const migration = async () => {
   case "subs":
     logger.info("Proposing subdomain registrations...");
 
-    const depth = 1; // <--- This value must also be changed manually between each iteration
+    const depth = Number(process.env.DEPTH); // <--- This value must also be changed manually between each iteration
     const atDepth = subdomains.filter(d => d.depth === depth);
 
     // ! ONLY UNBLOCK THIS CODE IF CERTAIN DOMAINS HAVE BEEN MISSED DURING REGISTRATION
@@ -197,6 +197,8 @@ export const migration = async () => {
           revokedParents.set(parentHash, missingParent);
         }
       }
+
+      logger.info(`Checking parents for domain "${domain.label}"`);
     }
 
     if (!safeKit) {
