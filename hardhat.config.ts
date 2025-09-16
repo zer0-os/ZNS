@@ -101,12 +101,6 @@ const config : HardhatUserConfig = {
       accounts: getAccounts([
         "DEPLOY_ADMIN_ZCHAIN_PK",
         "ZERO_VAULT_KEY",
-        "TEST_USER_A_KEY",
-        "TEST_USER_B_KEY",
-        "TEST_USER_C_KEY",
-        "TEST_USER_D_KEY",
-        "TEST_USER_E_KEY",
-        "TEST_USER_F_KEY",
       ]),
     },
     mainnet: {
@@ -145,6 +139,14 @@ const config : HardhatUserConfig = {
         urls: {
           apiURL: "https://zephyr-blockscout.eu-north-2.gateway.fm/api/",
           browserURL: "https://zephyr-blockscout.eu-north-2.gateway.fm/",
+        },
+      },
+      {
+        network: "zchain",
+        chainId: 9369,
+        urls: {
+          apiURL: "https://zscan.live/api/",
+          browserURL: "https://zscan.live/",
         },
       },
     ],

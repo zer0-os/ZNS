@@ -12,7 +12,7 @@ import {
   ZNSSubRegistrar__factory,
   ZNSTreasury__factory,
   ERC20Mock__factory,
-  ZNSStringResolver__factory,
+  ZNSStringResolver__factory, ZToken__factory,
 } from "../../../typechain/index";
 import { IZNSContracts } from "../../deploy/campaign/types";
 
@@ -36,13 +36,13 @@ export const getZNS = async (
     const rootRegistrarAddress = zns.find(contract => contract.name === znsNames.rootRegistrar.contract);
     const fixedPricerAddress = zns.find(contract => contract.name === znsNames.fixedPricer.contract);
     const subRegistrarAddress = zns.find(contract => contract.name === znsNames.subRegistrar.contract);
-    const meowTokenAddress = zns.find(contract => contract.name === znsNames.meowToken.contractMock);
+    const meowTokenAddress = zns.find(contract => contract.name === "ZToken (MEOW)");
 
     znsCache = {
       accessController: ZNSAccessController__factory.connect(acAddress?.address, signer),
       registry: ZNSRegistry__factory.connect(regAddress?.address, signer),
       domainToken: ZNSDomainToken__factory.connect(domainTokenAddress?.address, signer),
-      meowToken: ERC20Mock__factory.connect(meowTokenAddress?.address, signer),
+      meowToken: ZToken__factory.connect(meowTokenAddress?.address, signer),
       addressResolver: ZNSAddressResolver__factory.connect(addressResolverAddress?.address, signer),
       stringResolver: ZNSStringResolver__factory.connect(stringResolverAddress?.address, signer),
       curvePricer: ZNSCurvePricer__factory.connect(curvePricerAddress?.address, signer),
