@@ -41,7 +41,7 @@ Every domain registered has to settle on this contract with its crucial data (ab
 ### Key responsibilities
 - Serves as the last step of a domain registration process by saving the domain data in its storage
 - Official final reference of an existence of a certain domain - we call `ZNSRegistry` to verify that a new domain being minted has not been minted already
-- Is the first step in domain source discovery - we call `ZNSRegistry.getDomainResolver()` to find the Resolver that will tell us what this domain was created for (contract or wallet address, string, metadata hash, etc.). Currently ONLY `ZNSAddressResolver` is implemented, but more resolvers to come in the future for more data types.
+- Is the first step in domain source discovery - we call `ZNSRegistry.getDomainResolver()` to find the Resolver that will tell us what this domain was created for (contract or wallet address, string, metadata hash, etc.). Currently `ZNSAddressResolver` and `ZNSStringResolver` are implemented, and additional resolvers can be added by admins via the Registry’s resolver-type mapping (`addResolverType`/`deleteResolverType`).
 - Reference for crucial domain related data (owner, resolver).
 - Provide a way to install operators for any owner to allow them access to changing resolvers without the presence of the owner
 
@@ -53,7 +53,7 @@ A single token contract (ERC-721) responsible for tokenizing every domain/subdom
 - Mint a new token every time a domain is registered atomically within the register transaction (i.e. `ZNSRegistrar.registerRootDomain()` -> `ZNSDomainToken.register()`)
 - Burn the respective token every time a domain is revoked atomically within the revoke transaction (`ZNSRegistrar.revokeDomain()` -> `ZNSDomainToken.revoke()`)
 - Determine and check owner of any given domain token by the tokenId
-- Transfer/sell domain token to change the owner of the domain
+- Transfer domain token when the Registry owner and token owner are the same; transfers atomically update the Registry owner. When owners differ (a controlled domain), standard transfers are disallowed; reassignment is performed via `ZNSRootRegistrar.assignDomainToken()`.
 - Serve as a standard ERC-721 token with all the functionality provided so the token can be traded and managed by other applications.
 
 ## Resolvers, [ZNSStringResolver](./contracts/resolver/ZNSStringResolver.md) and [ZNSAddressResolver](./contracts/resolver/ZNSAddressResolver.md)
@@ -61,7 +61,7 @@ The zNS system is expected to have multiple Resolver contracts, each being respo
 
 A resolver is structured to be a simple contract, having a mapping of a domain namehash to the specific source type (e.g. `bytes32 => address` OR `bytes32 => bytes`, etc.). Each Resolver can support one data type at a time or can be a combined one, supporting multiple.
 
-The only resolver currently implemented is `ZNSAddressResolver`. It supports only address data type and has a simple mapping of `bytes32 domainHash => address contentAddress`.
+Two resolvers are implemented today: `ZNSAddressResolver` (address) and `ZNSStringResolver` (string). The address resolver has a simple mapping of `bytes32 domainHash => address contentAddress`.
 
 ### Key responsibilities
 - Provide a straightforward binging of a domain namehash to specific domain source data (e.g. `hash("cooldomainname") => 0x1bc5d767ff…`)
@@ -152,6 +152,7 @@ Many other contract functions have `onlyRegistrar()` modifiers which make sure t
 - Provide the main function for registering Root Domains, make sure that operations, especially ones using other contracts are performed properly and in proper sequence. Combine logic of other contracts in one atomic transaction. Check name existence, take the stake from the user, mint a domain token, set the data in `ZNSRegistry`.
 - Provide the main function for reclaiming full domain ownership for owners of the specific Domain Token. Ensure that only the owner of the actual ERC-721 token owner can do this, call `ZNSRegistry` to update the owner in records.
 - Provide the main function for revoking domains. Make sure that the only address allowed to revoke owns both the name, in the domain record held by the `ZNSRegistry` and the token, held by`ZNSDomainToken`. This will call `ZNSRegistry` to delete record, `ZNSDomainToken` to burn the token, and `ZNSTreasury` to unstake if needed.
+- Use `rootPaymentType` to determine whether root domain registrations use `DIRECT` (no stake fee) or `STAKE` payment flows.
 
 ## [ZNSSubRegistrar](./contracts/registrar/ZNSSubRegistrar.md)
 Contract responsible for the registration of subdomains and distribution configs for domains of all levels that are used to set and determine

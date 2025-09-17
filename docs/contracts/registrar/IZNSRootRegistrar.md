@@ -66,6 +66,20 @@ Reverted when trying to assign a token to address that is already an owner
 | domainHash | bytes32 | The hash of the domain |
 | currentOwner | address | The address that is already an owner of the token |
 
+### InvalidRootPaymentType
+
+```solidity
+error InvalidRootPaymentType(enum IDistributionConfig.PaymentType paymentType)
+```
+
+Reverted when trying to set new `rootPaymentType` that is not supported.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| paymentType | enum IDistributionConfig.PaymentType | The payment type passed to the setter |
+
 ### DomainRegistered
 
 ```solidity
@@ -196,10 +210,24 @@ Emitted when the `subRegistrar` address is set in state.
 | ---- | ---- | ----------- |
 | subRegistrar | address | The new address of the SubRegistrar contract |
 
+### RootPaymentTypeSet
+
+```solidity
+event RootPaymentTypeSet(enum IDistributionConfig.PaymentType newRootPaymentType)
+```
+
+Emitted when the `rootPaymentType` is set in state.
+
+#### Parameters
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| newRootPaymentType | enum IDistributionConfig.PaymentType | The new type of payment for root domains |
+
 ### initialize
 
 ```solidity
-function initialize(address accessController_, address registry_, address rootPricer_, bytes priceConfig_, address treasury_, address domainToken_) external
+function initialize(address accessController_, address registry_, address rootPricer_, bytes priceConfig_, address treasury_, address domainToken_, enum IDistributionConfig.PaymentType rootPaymentType_) external
 ```
 
 ### registerRootDomain
@@ -250,6 +278,12 @@ function setRootPricerAndConfig(address rootPricer_, bytes priceConfig_) externa
 function setRootPriceConfig(bytes priceConfig_) external
 ```
 
+### setRootPaymentType
+
+```solidity
+function setRootPaymentType(enum IDistributionConfig.PaymentType rootPaymentType_) external
+```
+
 ### setTreasury
 
 ```solidity
@@ -290,6 +324,12 @@ function rootPricer() external returns (contract IZNSPricer)
 
 ```solidity
 function rootPriceConfig() external returns (bytes)
+```
+
+### rootPaymentType
+
+```solidity
+function rootPaymentType() external returns (enum IDistributionConfig.PaymentType)
 ```
 
 ### treasury

@@ -16,22 +16,21 @@ contracts.
   - `ZNSAddressResolver` 
   - `ZNSDomainToken` 
   - `ZNSTreasury`
-- The function `ZNSRootRegister.setRootPricer()` allows admins to update the pricer contract used to determine pricing for root
-domains. 
-- The function `ZNSRootRegister.setTreasury()` allows admins to update the `ZNSTreasury` contract used to store protocol fees
-and staked funds. 
-- The function `ZNSRootRegister.setDomainToken()` allows admins to update the domain token contract used to validate domain
-ownership. 
-- The function `ZNSRootRegister.setSubRegistrar()` allows admins to update the subdomain registrar contract. 
-- The function `ZNSRootRegister.setAddressResolver()` allows admins to update the root domain resolver. 
+- The function `ZNSRootRegistrar.setRootPricerAndConfig()` allows admins to set the root pricer and validate/store the root price configuration for root domains.
+- The function `ZNSRootRegistrar.setRootPriceConfig()` allows admins to update the price configuration for the currently set root pricer.
+- The function `ZNSRootRegistrar.setTreasury()` allows admins to update the `ZNSTreasury` contract used to store protocol fees
+and staked funds.
+- The function `ZNSRootRegistrar.setDomainToken()` allows admins to update the domain token contract used to validate domain
+ownership.
+- The function `ZNSRootRegistrar.setSubRegistrar()` allows admins to update the subdomain registrar contract.
+- The functions `ZNSRegistry.addResolverType()` and `ZNSRegistry.deleteResolverType()` allow admins to manage resolver implementations mapped by resolver type strings (e.g., "address"). Root resolvers are not set on `ZNSRootRegistrar`; resolver selection is performed via the `ZNSRegistry` resolver type mapping.
+- The function `ZNSRootRegistrar.setRootPaymentType()` allows admins to set the root payment modality (`DIRECT` or `STAKE`) used by `registerRootDomain()`.
 - The admins can grant `REGISTRAR_ROLE` to addresses.
 
 ## `REGISTRAR_ROLE` privileges:
-- The function `ZNSRootRegister.coreRegister()` allows registrars to register domains. 
+- The function `ZNSRootRegistrar.coreRegister()` allows registrars to register domains.
 - The function `ZNSRegistry.createDomainRecord()` allows registrars to register domain records which track ownership and address
 resolver. 
-- The function `ZNSRegistry.addResolverType` allows admins to add new types of resolvers
-- The function `ZNSRegistry.deleteResolverType` allows admins to remove an existing type of resolver.
 - The function `ZNSDomainToken.register()` allows registrars to mint tokens which are used to validate domain ownership. 
 - The function `ZNSDomainToken.revoke()` allows registrars to burn tokens to revoke domain ownership. 
 - The function `ZNSTreasury.stakeForDomain()` allows registrars to process registration fee to beneficiaries and stake domain funds
