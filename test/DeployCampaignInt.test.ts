@@ -943,8 +943,6 @@ describe("Deploy Campaign Test", () => {
     >;
 
     before(async () => {
-      await saveTag();
-
       campaignConfig = {
         env,
         confirmationsN: 0,
