@@ -10,7 +10,7 @@ import { curvePriceConfigEmpty, distrConfigEmpty, fixedPriceConfigEmpty, payment
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { fundApprove } from "../register-setup";
-import { ContractTransactionResponse } from "ethers";
+import { Addressable, ContractTransactionResponse } from "ethers";
 import { expect } from "chai";
 import { encodePriceConfig } from "../pricing";
 
@@ -39,6 +39,7 @@ export default class Domain {
     zns : IZNSContracts;
     domainConfig : IFullDomainConfig;
   }) {
+    // setting up all nessesary params for a Domain
     this.zns = zns;
 
     this.owner = domainConfig.owner;
@@ -48,15 +49,23 @@ export default class Domain {
     this.tokenOwner = domainConfig.tokenOwner || hre.ethers.ZeroAddress;
     this.distrConfig = domainConfig.distrConfig || distrConfigEmpty;
 
-    switch (this.distrConfig.pricerContract) {
-    case zns.curvePricer.target:
-      this.priceConfig = curvePriceConfigEmpty;
-      break;
-    case zns.fixedPricer.target:
-      this.priceConfig = fixedPriceConfigEmpty;
-      break;
-    default:
-      this.priceConfig = {} as ICurvePriceConfig | IFixedPriceConfig;
+    if (!domainConfig.priceConfig) {
+      switch (this.distrConfig.pricerContract) {
+      case zns.curvePricer.target:
+        this.priceConfig = curvePriceConfigEmpty;
+        break;
+      case zns.fixedPricer.target:
+        this.priceConfig = fixedPriceConfigEmpty;
+        break;
+      default:
+        this.priceConfig = {} as ICurvePriceConfig | IFixedPriceConfig;
+      }
+    } else {
+      this.priceConfig = domainConfig.priceConfig;
+    }
+
+    if (!this.distrConfig.priceConfig) {
+      this.distrConfig.priceConfig = encodePriceConfig(this.priceConfig);
     }
 
     this.paymentConfig = domainConfig.paymentConfig || paymentConfigEmpty;
@@ -97,13 +106,13 @@ export default class Domain {
     return domainHash;
   }
 
-  async mintAndApproveForDomain (user ?: SignerWithAddress) : Promise<ContractTransactionResponse> {
+  async mintAndApproveForDomain (user ?: SignerWithAddress) : Promise<ContractTransactionResponse | undefined> {
     return (fundApprove({
       zns: this.zns,
       parentHash: this.parentHash,
       user: user ? user : this.owner,
       domainLabel: this.label,
-    })) as Promise<ContractTransactionResponse>;
+    }));
   }
 
   async register (executor ?: SignerWithAddress) : Promise<ContractTransactionResponse> {
@@ -119,17 +128,14 @@ export default class Domain {
       domainAddress,
     } = this;
 
-    if (!distrConfig.priceConfig) {
-      distrConfig.priceConfig = encodePriceConfig(this.priceConfig);
-    }
-
     let txPromise : ContractTransactionResponse;
+    const caller = executor ? executor : owner;
 
     // mint and approve strict amount of tokens for domain registration
-    await this.mintAndApproveForDomain(executor);
+    await this.mintAndApproveForDomain(caller);
 
     if (this.isRoot) {
-      txPromise = await zns.rootRegistrar.connect(executor ? executor : owner).registerRootDomain({
+      txPromise = await zns.rootRegistrar.connect(caller).registerRootDomain({
         name: label,
         domainAddress: hre.ethers.isAddress(domainAddress) ? domainAddress : owner.address,
         tokenOwner,
@@ -138,7 +144,7 @@ export default class Domain {
         paymentConfig,
       });
     } else {
-      txPromise = await zns.subRegistrar.connect(executor ? executor : owner).registerSubdomain({
+      txPromise = await zns.subRegistrar.connect(caller).registerSubdomain({
         parentHash,
         label,
         domainAddress: hre.ethers.isAddress(domainAddress) ? domainAddress : owner.address,
@@ -149,7 +155,7 @@ export default class Domain {
       });
     }
 
-    this.hash = await this.getDomainHashFromEvent(executor);
+    this.hash = await this.getDomainHashFromEvent(caller);
 
     return txPromise;
   }
@@ -169,13 +175,14 @@ export default class Domain {
   }
 
   async updateDomainRecord (
-    resolverType : string,
+    resolverType ?: string,
+    newOwner ?: string,
     executor ?: SignerWithAddress
   ) : Promise<ContractTransactionResponse> {
     return this.zns.registry.connect(executor ? executor : this.owner).updateDomainRecord(
       this.hash,
-      this.owner,
-      resolverType,
+      newOwner ? newOwner : this.owner,
+      resolverType ? resolverType : "address",
     );
   }
 
@@ -194,9 +201,6 @@ export default class Domain {
     );
   }
 
-  // ------------------------------------------------------
-  // SETTERS
-  // ------------------------------------------------------
   async setOwnersOperator (
     operator : string,
     allowed : boolean,
@@ -216,7 +220,7 @@ export default class Domain {
 
   async setPricerDataForDomain (
     priceConfig ?: ICurvePriceConfig | IFixedPriceConfig,
-    pricerContract ?: string,
+    pricerContract ?: string | Addressable,
     executor ?: SignerWithAddress
   ) : Promise<ContractTransactionResponse> {
     return this.zns.subRegistrar.connect(executor ? executor : this.owner).setPricerDataForDomain(
@@ -250,9 +254,19 @@ export default class Domain {
   // VALIDATION
   // ------------------------------------------------------
   async registerAndValidateDomain (
-    executor ?: SignerWithAddress
+    executor ?: SignerWithAddress,
+    domainOwner ?: string,
+    tokenOwner ?: string,
   ) : Promise<void> {
-    const txPromise = await this.register(executor);
+    const caller = executor ? executor : this.owner;
+    const txPromise = await this.register(caller);
+
+    if (!domainOwner) {
+      domainOwner = caller.address;
+    }
+    if (!tokenOwner) {
+      tokenOwner = caller.address;
+    }
 
     // check domain existence with event
     await expect(txPromise)
@@ -265,8 +279,8 @@ export default class Domain {
         this.label,
         BigInt(this.hash),
         this.tokenURI,
-        executor ? executor.address : this.owner.address,
-        executor ? executor.address : this.owner.address,
+        domainOwner,
+        tokenOwner,
         this.domainAddress
       );
 
@@ -276,8 +290,8 @@ export default class Domain {
 
     expect(
       await this.zns.registry.getDomainOwner(this.hash)
-    ).to.equal(executor ? executor.address : this.owner.address);
-    expect(record.owner).to.equal(executor ? executor.address : this.owner.address);
+    ).to.equal(caller);
+    expect(record.owner).to.equal(domainOwner);
     expect(record.resolver).to.equal(resolverAddress);
 
     expect(

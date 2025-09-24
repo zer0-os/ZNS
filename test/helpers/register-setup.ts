@@ -5,7 +5,7 @@ import {
   IPaymentConfig,
   DefaultRootRegistrationArgs,
 } from "./types";
-import { ContractTransactionReceipt, ethers } from "ethers";
+import { ContractTransactionReceipt, ContractTransactionResponse, ethers } from "ethers";
 import { getDomainHashFromEvent } from "./events";
 import { distrConfigEmpty, fullConfigEmpty, DEFAULT_TOKEN_URI, paymentConfigEmpty } from "./constants";
 import { getTokenContract } from "./tokens";
@@ -52,7 +52,7 @@ export const fundApprove = async ({
   parentHash ?: string;
   user : SignerWithAddress;
   domainLabel : string;
-}) => {
+}) : Promise<ContractTransactionResponse | undefined> => {
   let pricerContract;
   let priceConfig;
   parentHash = parentHash || ethers.ZeroHash;
@@ -64,10 +64,8 @@ export const fundApprove = async ({
     ({ pricerContract, priceConfig } = await zns.subRegistrar.distrConfigs(parentHash));
   }
 
-
   let price = BigInt(0);
   let parentFee = BigInt(0);
-  let toMint = BigInt(0);
 
   if (pricerContract === await zns.curvePricer.getAddress()) {
     [price, parentFee] = await zns.curvePricer.getPriceAndFee(priceConfig, domainLabel, false);
@@ -85,7 +83,7 @@ export const fundApprove = async ({
 
   const userBalance = await tokenContract.balanceOf(user.address);
   if (userBalance < totalPrice) {
-    toMint = totalPrice - userBalance;
+    const toMint = totalPrice - userBalance;
     await tokenContract.connect(user).mint(user.address, toMint);
   }
 
