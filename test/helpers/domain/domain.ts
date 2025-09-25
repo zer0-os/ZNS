@@ -1,16 +1,29 @@
 import * as hre from "hardhat";
 import { IZNSContracts } from "../../../src/deploy/campaign/types";
 import { IFullDomainConfig } from "./types";
-import { IDistributionConfig, IPaymentConfig } from "../types";
+import {
+  IDistributionConfig,
+  IPaymentConfig,
+} from "../types";
 import {
   ICurvePriceConfig,
   IFixedPriceConfig,
 } from "../../../src/deploy/missions/types";
-import { curvePriceConfigEmpty, distrConfigEmpty, fixedPriceConfigEmpty, paymentConfigEmpty } from "../constants";
+import {
+  AccessType,
+  curvePriceConfigEmpty,
+  distrConfigEmpty,
+  fixedPriceConfigEmpty,
+  paymentConfigEmpty,
+  PaymentType,
+} from "../constants";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { fundApprove } from "../register-setup";
-import { Addressable, ContractTransactionResponse } from "ethers";
+import {
+  Addressable,
+  ContractTransactionResponse,
+} from "ethers";
 import { expect } from "chai";
 import { encodePriceConfig } from "../pricing";
 
@@ -41,12 +54,13 @@ export default class Domain {
   }) {
     // setting up all nessesary params for a Domain
     this.zns = zns;
-
     this.owner = domainConfig.owner;
+    this.label = domainConfig.label;
+
+    // setting up all optional params
     this.parentHash = domainConfig.parentHash || hre.ethers.ZeroHash;
     this.isRoot = this.parentHash === hre.ethers.ZeroHash;
-    this.label = domainConfig.label;
-    this.tokenOwner = domainConfig.tokenOwner || hre.ethers.ZeroAddress;
+    this.tokenOwner = domainConfig.tokenOwner || this.owner.address;
     this.distrConfig = domainConfig.distrConfig || distrConfigEmpty;
 
     if (!domainConfig.priceConfig) {
@@ -79,15 +93,19 @@ export default class Domain {
     return BigInt(this.hash);
   }
 
-  async ownerOfHash () : Promise<string> {
+  get ownerOfHash () : Promise<string> {
     return this.zns.registry.getDomainOwner(this.hash);
   }
 
-  async ownerOfToken () : Promise<string> {
+  get ownerOfToken () : Promise<string> {
     return this.zns.domainToken.ownerOf(this.tokenId);
   }
 
-  async getDomainHashFromEvent (domainOwner ?: SignerWithAddress) : Promise<string> {
+  async isOwnerOrOperator (candidate : SignerWithAddress) : Promise<boolean> {
+    return this.zns.registry.isOwnerOrOperator(this.hash, candidate.address);
+  }
+
+  private async getDomainHashFromEvent (domainOwner ?: SignerWithAddress) : Promise<string> {
     const latestBlock = await time.latestBlock();
     const filter = this.zns.rootRegistrar.filters.DomainRegistered(
       undefined,
@@ -126,6 +144,7 @@ export default class Domain {
       tokenURI,
       tokenOwner,
       domainAddress,
+      isRoot,
     } = this;
 
     let txPromise : ContractTransactionResponse;
@@ -134,7 +153,7 @@ export default class Domain {
     // mint and approve strict amount of tokens for domain registration
     await this.mintAndApproveForDomain(caller);
 
-    if (this.isRoot) {
+    if (isRoot) {
       txPromise = await zns.rootRegistrar.connect(caller).registerRootDomain({
         name: label,
         domainAddress: hre.ethers.isAddress(domainAddress) ? domainAddress : owner.address,
@@ -210,44 +229,72 @@ export default class Domain {
   }
 
   async setDistributionConfigForDomain (
+    distrConfig : IDistributionConfig,
     executor ?: SignerWithAddress
-  ) : Promise<ContractTransactionResponse> {
-    return this.zns.subRegistrar.connect(executor ? executor : this.owner).setDistributionConfigForDomain(
+  ) {
+    const currentConfig = distrConfig ? distrConfig : this.distrConfig;
+
+    await this.zns.subRegistrar.connect(executor ? executor : this.owner).setDistributionConfigForDomain(
       this.hash,
-      this.distrConfig,
+      currentConfig,
     );
+
+    // updating local var
+    this.distrConfig = currentConfig;
   }
 
   async setPricerDataForDomain (
     priceConfig ?: ICurvePriceConfig | IFixedPriceConfig,
     pricerContract ?: string | Addressable,
     executor ?: SignerWithAddress
-  ) : Promise<ContractTransactionResponse> {
-    return this.zns.subRegistrar.connect(executor ? executor : this.owner).setPricerDataForDomain(
-      this.hash,
-      priceConfig ? encodePriceConfig(priceConfig) : encodePriceConfig(this.priceConfig),
-      pricerContract ? pricerContract : this.distrConfig.pricerContract
-    );
+  ) {
+    if (priceConfig ||
+      this.priceConfig !== undefined ||
+      Object.keys(this.priceConfig).length === 0
+    ) {
+      await this.zns.subRegistrar.connect(executor ? executor : this.owner).setPricerDataForDomain(
+        this.hash,
+        priceConfig ? encodePriceConfig(priceConfig) : encodePriceConfig(this.priceConfig),
+        pricerContract ? pricerContract : this.distrConfig.pricerContract
+      );
+    } else {
+      throw new Error("Domain Helper: priceConfig is not specified");
+    }
+
+    // updating local var
+    if (priceConfig) {
+      this.priceConfig = priceConfig;
+    }
   }
 
   async setPaymentTypeForDomain (
     paymentType : bigint,
     executor ?: SignerWithAddress
-  ) : Promise<ContractTransactionResponse> {
-    return this.zns.subRegistrar.connect(executor ? executor : this.owner).setPaymentTypeForDomain(
-      this.hash,
-      paymentType,
-    );
+  ) : Promise<ContractTransactionResponse | undefined> {
+    if (Object.values(PaymentType).includes(paymentType)) {
+      return this.zns.subRegistrar.connect(executor ? executor : this.owner).setPaymentTypeForDomain(
+        this.hash,
+        paymentType,
+      );
+    }
+
+    // updating local var
+    this.distrConfig.paymentType = paymentType;
   }
 
   async setAccessTypeForDomain (
     accessType : bigint,
     executor ?: SignerWithAddress
-  ) : Promise<ContractTransactionResponse> {
-    return this.zns.subRegistrar.connect(executor ? executor : this.owner).setAccessTypeForDomain(
-      this.hash,
-      accessType,
-    );
+  ) : Promise<ContractTransactionResponse | undefined> {
+    if (!Object.values(AccessType).includes(accessType)) {
+      return this.zns.subRegistrar.connect(executor ? executor : this.owner).setAccessTypeForDomain(
+        this.hash,
+        accessType,
+      );
+    }
+
+    // updating local var
+    this.distrConfig.accessType = accessType;
   }
 
   // ------------------------------------------------------

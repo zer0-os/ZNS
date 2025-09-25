@@ -29,6 +29,7 @@ import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import {
   accessControllerName,
   addressResolverName,
+  stringResolverName,
   domainTokenName,
   erc1967ProxyName,
   fixedPricerName,
@@ -279,7 +280,7 @@ export const deployStringResolver = async (
     const impl = await getProxyImplAddress(proxyAddress);
 
     await hre.tenderly.verify({
-      name: addressResolverName,
+      name: stringResolverName,
       address: impl,
     });
 

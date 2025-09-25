@@ -84,8 +84,6 @@ describe("ZNSRootRegistrar", () => {
   const tokenURI = "https://example.com/817c64af";
   const defaultDomain = normalizeName("wilder");
 
-  let directPaymentDomainHash : string;
-
   beforeEach(async () => {
     // zeroVault address is used to hold the fee charged to the user when registering
     [deployer, zeroVault, user, operator, governor, admin, randomUser] = await hre.ethers.getSigners();
@@ -543,7 +541,7 @@ describe("ZNSRootRegistrar", () => {
       });
       await domain.registerAndValidateDomain(randomUser);
 
-      expect(await domain.ownerOfToken()).to.eq(randomUser.address);
+      expect(await domain.ownerOfToken).to.eq(randomUser.address);
     });
 
     it("Stakes and saves the correct amount and token, takes the correct fee and sends fee to Zero Vault", async () => {
@@ -931,16 +929,16 @@ describe("ZNSRootRegistrar", () => {
       await zns.registry.connect(deployer).updateDomainOwner(domain.hash, user.address);
 
       // Verify owner in Registry is changed
-      expect(await domain.ownerOfHash()).to.equal(user.address);
+      expect(await domain.ownerOfHash).to.equal(user.address);
 
       // Reclaim the Domain Token
       await domain.assignDomainToken(user.address, user);
 
       // Verify domain token is now owned by new hash owner
-      expect(await domain.ownerOfToken()).to.equal(user.address);
+      expect(await domain.ownerOfToken).to.equal(user.address);
 
       // Verify domain is still owned in registry
-      expect(await domain.ownerOfHash()).to.equal(user.address);
+      expect(await domain.ownerOfHash).to.equal(user.address);
 
       // Verify same amount is staked
       const { amount: stakedAfterReclaim, token: tokenAfterReclaim } = await zns.treasury.stakedForDomain(domain.hash);
@@ -989,7 +987,7 @@ describe("ZNSRootRegistrar", () => {
 
       // Verify domain is not owned in registry
       expect(
-        await domain.ownerOfHash()
+        await domain.ownerOfHash
       ).to.equal(deployer.address);
     });
 
@@ -1025,22 +1023,22 @@ describe("ZNSRootRegistrar", () => {
       // Claim the Domain token
       await domain.assignDomainToken(user.address, user);
       // Verify domain token is owned
-      expect(await domain.ownerOfToken()).to.equal(user.address);
+      expect(await domain.ownerOfToken).to.equal(user.address);
 
       // Transfer the domain token back
       await zns.domainToken.connect(user).transferFrom(user.address, deployer.address, domain.tokenId);
 
       // check that hash and token owners changed to the same address
-      expect(await domain.ownerOfToken()).to.equal(deployer.address);
-      expect(await domain.ownerOfHash()).to.equal(deployer.address);
+      expect(await domain.ownerOfToken).to.equal(deployer.address);
+      expect(await domain.ownerOfHash).to.equal(deployer.address);
 
       // Assign the Domain token to diff address again
       await domain.assignDomainToken(user.address, deployer);
 
       // Verify domain token is owned
-      expect(await domain.ownerOfToken()).to.equal(user.address);
+      expect(await domain.ownerOfToken).to.equal(user.address);
       // but not the hash
-      expect(await domain.ownerOfHash()).to.equal(deployer.address);
+      expect(await domain.ownerOfHash).to.equal(deployer.address);
 
       // Verify same amount is staked
       const { amount: stakedAfterReclaim, token: tokenAfterReclaim } = await zns.treasury.stakedForDomain(domain.hash);
@@ -1125,8 +1123,6 @@ describe("ZNSRootRegistrar", () => {
       });
       await domain.register();
 
-      const domainHash = await domain.getDomainHashFromEvent(user);
-
       const price = await zns.curvePricer.getPrice(
         DEFAULT_CURVE_PRICE_CONFIG_BYTES,
         defaultDomain,
@@ -1139,7 +1135,7 @@ describe("ZNSRootRegistrar", () => {
       );
 
       await expect(
-        zns.rootRegistrar.connect(user).revokeDomain(domainHash)
+        zns.rootRegistrar.connect(user).revokeDomain(domain.hash)
       ).to.changeTokenBalance(
         zns.meowToken,
         user,
@@ -1162,20 +1158,18 @@ describe("ZNSRootRegistrar", () => {
       });
       await domain.register();
 
-      directPaymentDomainHash = await domain.getDomainHashFromEvent(user);
-
-      const { amount: staked, token } = await zns.treasury.stakedForDomain(directPaymentDomainHash);
+      const { amount: staked, token } = await zns.treasury.stakedForDomain(domain.hash);
       expect(staked).to.eq(0n);
       expect(token).to.eq(hre.ethers.ZeroAddress);
 
       const userBalanceBefore = await zns.meowToken.balanceOf(user.address);
       const treasuryBalanceBefore = await zns.meowToken.balanceOf(await zns.treasury.getAddress());
 
-      const owner = await zns.registry.getDomainOwner(directPaymentDomainHash);
+      const owner = await zns.registry.getDomainOwner(domain.hash);
       expect(owner).to.equal(user.address);
 
       // Revoke the domain and then verify
-      await zns.rootRegistrar.connect(user).revokeDomain(directPaymentDomainHash);
+      await zns.rootRegistrar.connect(user).revokeDomain(domain.hash);
 
       await checkBalance({
         token: zns.meowToken,
@@ -1213,8 +1207,6 @@ describe("ZNSRootRegistrar", () => {
       });
       await domain.register();
 
-      const domainHash = await domain.getDomainHashFromEvent(user);
-
       // add mintlist to check revocation
       await domain.updateMintlistForDomain(
         [user.address, zeroVault.address],
@@ -1243,23 +1235,23 @@ describe("ZNSRootRegistrar", () => {
 
       // Verify token has been burned
       await expect(
-        domain.ownerOfToken()
+        domain.ownerOfToken
       ).to.be.revertedWithCustomError(
         zns.domainToken,
         NONEXISTENT_TOKEN_ERC_ERR
-      ).withArgs(BigInt(domainHash));
+      ).withArgs(BigInt(domain.hash));
 
       // Verify Domain Record Deleted
-      const exists = await zns.registry.exists(domainHash);
+      const exists = await zns.registry.exists(domain.hash);
       expect(exists).to.be.false;
 
       // validate access type has been set to LOCKED
-      const { accessType } = await zns.subRegistrar.distrConfigs(domainHash);
+      const { accessType } = await zns.subRegistrar.distrConfigs(domain.hash);
       expect(accessType).to.eq(AccessType.LOCKED);
 
       // validate mintlist has been removed
-      expect(await zns.subRegistrar.isMintlistedForDomain(domainHash, user.address)).to.be.false;
-      expect(await zns.subRegistrar.isMintlistedForDomain(domainHash, zeroVault.address)).to.be.false;
+      expect(await zns.subRegistrar.isMintlistedForDomain(domain.hash, user.address)).to.be.false;
+      expect(await zns.subRegistrar.isMintlistedForDomain(domain.hash, zeroVault.address)).to.be.false;
     });
 
     it("Cannot revoke a domain that doesnt exist", async () => {
@@ -1332,7 +1324,7 @@ describe("ZNSRootRegistrar", () => {
       });
       await domain.register();
 
-      const owner = await domain.ownerOfHash();
+      const owner = await domain.ownerOfHash;
       expect(owner).to.not.equal(user.address);
 
       // Try to revoke domain
@@ -1354,7 +1346,7 @@ describe("ZNSRootRegistrar", () => {
       await domain.register();
 
       expect(
-        await domain.ownerOfHash()
+        await domain.ownerOfHash
       ).to.not.equal(user.address);
 
       await domain.assignDomainToken(user.address, deployer);
