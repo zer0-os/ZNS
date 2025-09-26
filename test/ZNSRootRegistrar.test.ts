@@ -79,8 +79,6 @@ describe("ZNSRootRegistrar", () => {
 
   let mongoAdapter : MongoDBAdapter;
 
-  let domain : Domain;
-
   const tokenURI = "https://example.com/817c64af";
   const defaultDomain = normalizeName("wilder");
 
@@ -145,7 +143,7 @@ describe("ZNSRootRegistrar", () => {
       accessType: AccessType.OPEN,
     };
 
-    domain = new Domain({
+    const domain = new Domain({
       zns,
       domainConfig: {
         owner: deployer,
@@ -398,7 +396,7 @@ describe("ZNSRootRegistrar", () => {
     it("Can NOT register a root domain with an empty name", async () => {
       const emptyName = "";
 
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: deployer,
@@ -423,7 +421,7 @@ describe("ZNSRootRegistrar", () => {
           },
         };
 
-        domain = new Domain(args);
+        const domain = new Domain(args);
         await domain.registerAndValidateDomain();
       }
     });
@@ -441,7 +439,7 @@ describe("ZNSRootRegistrar", () => {
           },
         };
 
-        domain = new Domain(args);
+        const domain = new Domain(args);
 
         await expect(
           domain.register()
@@ -453,7 +451,7 @@ describe("ZNSRootRegistrar", () => {
       await zns.rootRegistrar.connect(admin).pauseRegistration();
       expect(await zns.rootRegistrar.registrationPaused()).to.be.true;
 
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -472,7 +470,7 @@ describe("ZNSRootRegistrar", () => {
       await zns.rootRegistrar.connect(admin).pauseRegistration();
       expect(await zns.rootRegistrar.registrationPaused()).to.be.true;
 
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: admin,
@@ -486,7 +484,7 @@ describe("ZNSRootRegistrar", () => {
 
     // eslint-disable-next-line max-len
     it("Successfully registers a domain without a resolver or resolver content and fires a #DomainRegistered event", async () => {
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -506,7 +504,7 @@ describe("ZNSRootRegistrar", () => {
         paymentType: PaymentType.DIRECT,
       };
 
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -530,7 +528,7 @@ describe("ZNSRootRegistrar", () => {
     });
 
     it("Registers a domain with assigning token owner to a different address", async () => {
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -549,7 +547,7 @@ describe("ZNSRootRegistrar", () => {
       const balanceBeforeVault = await zns.meowToken.balanceOf(zeroVault.address);
 
       // Deploy "wilder" with default configuration
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -597,7 +595,7 @@ describe("ZNSRootRegistrar", () => {
 
       const directPaymentDomainName = "direct-payment";
 
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -711,7 +709,7 @@ describe("ZNSRootRegistrar", () => {
     });
 
     it("Sets the correct data in Registry", async () => {
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -751,7 +749,7 @@ describe("ZNSRootRegistrar", () => {
     });
 
     it("Disallows creation of a duplicate domain", async () => {
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: deployer,
@@ -768,7 +766,7 @@ describe("ZNSRootRegistrar", () => {
     });
 
     it("Successfully registers a domain without resolver content", async () => {
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -783,7 +781,7 @@ describe("ZNSRootRegistrar", () => {
     });
 
     it("Creates and finds the correct tokenId", async () => {
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -796,7 +794,7 @@ describe("ZNSRootRegistrar", () => {
     });
 
     it("Resolves the correct address from the domain", async () => {
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -862,7 +860,7 @@ describe("ZNSRootRegistrar", () => {
         priceConfig: DEFAULT_CURVE_PRICE_CONFIG_BYTES,
       };
 
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -890,7 +888,7 @@ describe("ZNSRootRegistrar", () => {
         priceConfig: DEFAULT_CURVE_PRICE_CONFIG_BYTES,
       };
 
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -913,7 +911,7 @@ describe("ZNSRootRegistrar", () => {
   describe("Assigning Domain Token Owners - #assignDomainToken()", () => {
     it("Can assign token to another address and reclaim token if domain hash is owned", async () => {
       // Register Top level
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: deployer,
@@ -948,7 +946,7 @@ describe("ZNSRootRegistrar", () => {
     });
 
     it("Assigning domain token emits DomainTokenReassigned event", async () => {
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: deployer,
@@ -967,7 +965,7 @@ describe("ZNSRootRegistrar", () => {
     });
 
     it("Cannot assign token if hash is not owned", async () => {
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: deployer,
@@ -1006,7 +1004,7 @@ describe("ZNSRootRegistrar", () => {
     // eslint-disable-next-line max-len
     it("Domain hash can change owner, claim token, transfer, and then be assigned to a diff address again", async () => {
       // Register Top level
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: deployer,
@@ -1049,7 +1047,7 @@ describe("ZNSRootRegistrar", () => {
 
     it("Should revert if assigning to existing owner", async () => {
       // Register Top level
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: deployer,
@@ -1071,7 +1069,7 @@ describe("ZNSRootRegistrar", () => {
   describe("Revoking Domains", () => {
     it("Can revoke even if token assigned to a different address", async () => {
       // Register Top level
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: deployer,
@@ -1114,7 +1112,7 @@ describe("ZNSRootRegistrar", () => {
     });
 
     it("Charges a protocol fee to the owner as part of the revoke flow", async () => {
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -1149,7 +1147,7 @@ describe("ZNSRootRegistrar", () => {
 
       const directPaymentDomainName = "direct-payment";
 
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -1191,7 +1189,7 @@ describe("ZNSRootRegistrar", () => {
 
     it("Revokes a Top level Domain, locks distribution and removes mintlist", async () => {
       // Register Top level
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -1274,7 +1272,7 @@ describe("ZNSRootRegistrar", () => {
       expect(balance).to.eq(userBalanceInitial);
 
       // Register Top level
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,
@@ -1315,7 +1313,7 @@ describe("ZNSRootRegistrar", () => {
 
     it("Cannot revoke if Name is owned by another user", async () => {
       // Register Top level
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: deployer,
@@ -1336,7 +1334,7 @@ describe("ZNSRootRegistrar", () => {
 
     it("Only token owner can NOT revoke if hash is owned by different address", async () => {
       // Register Top level
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: deployer,
@@ -1366,7 +1364,7 @@ describe("ZNSRootRegistrar", () => {
 
     it("After domain has been revoked, an old operator can NOT access Registry", async () => {
       // Register Top level
-      domain = new Domain({
+      const domain = new Domain({
         zns,
         domainConfig: {
           owner: user,

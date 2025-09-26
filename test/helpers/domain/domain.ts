@@ -333,13 +333,14 @@ export default class Domain {
 
     // check domain existence with registry
     const record = await this.zns.registry.getDomainRecord(this.hash);
-    const resolverAddress = await this.zns.registry.getDomainResolver(this.hash);
+    const resolverTypeReference = this.domainAddress === hre.ethers.ZeroAddress ? "" : "address";
+    const resolverAddressReference = await this.zns.registry.getResolverType(resolverTypeReference);
 
     expect(
       await this.zns.registry.getDomainOwner(this.hash)
     ).to.equal(caller);
     expect(record.owner).to.equal(domainOwner);
-    expect(record.resolver).to.equal(resolverAddress);
+    expect(record.resolver).to.equal(resolverAddressReference);
 
     expect(
       await this.zns.domainToken.tokenURI(this.hash)
