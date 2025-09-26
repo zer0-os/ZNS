@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
-import { ICurvePriceConfig } from "../../src/deploy/missions/types";
-import { IDistributionConfig, IFixedPriceConfig, IFullDistributionConfig, IPaymentConfig } from "./types";
+import { ICurvePriceConfig, IFixedPriceConfig } from "../../src/deploy/missions/types";
+import { IDistributionConfig, IFullDistributionConfig, IPaymentConfig } from "./types";
 import { encodePriceConfig } from "./pricing";
 import { ZeroHash } from "ethers";
 
@@ -80,6 +80,11 @@ export const curvePriceConfigEmpty : ICurvePriceConfig = {
   feePercentage: BigInt(0),
 };
 
+export const fixedPriceConfigEmpty : IFixedPriceConfig = {
+  price: BigInt(0),
+  feePercentage: BigInt(0),
+};
+
 export const paymentConfigEmpty : IPaymentConfig = {
   token: ethers.ZeroAddress,
   beneficiary: ethers.ZeroAddress,
@@ -105,6 +110,7 @@ export const registryName = "ZNSRegistry";
 export const domainTokenName = "ZNSDomainToken";
 export const meowTokenMockName = "ERC20Mock";
 export const addressResolverName = "ZNSAddressResolver";
+export const stringResolverName = "ZNSStringResolver";
 export const curvePricerName = "ZNSCurvePricer";
 export const fixedPricerName = "ZNSFixedPricer";
 export const treasuryName = "ZNSTreasury";
