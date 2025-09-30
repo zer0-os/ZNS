@@ -422,7 +422,7 @@ describe("ZNSRootRegistrar", () => {
         };
 
         const domain = new Domain(args);
-        await domain.registerAndValidateDomain();
+        await domain.registerAndValidateDomain({});
       }
     });
 
@@ -477,7 +477,7 @@ describe("ZNSRootRegistrar", () => {
           label: defaultDomain,
         },
       });
-      await domain.registerAndValidateDomain();
+      await domain.registerAndValidateDomain({});
 
       await zns.rootRegistrar.connect(admin).unpauseRegistration();
     });
@@ -493,7 +493,7 @@ describe("ZNSRootRegistrar", () => {
         },
       });
 
-      await domain.registerAndValidateDomain();
+      await domain.registerAndValidateDomain({});
     });
 
     it("Successfully registers a domain with distrConfig and adds it to state properly", async () => {
@@ -514,13 +514,13 @@ describe("ZNSRootRegistrar", () => {
         },
       });
 
-      await domain.registerAndValidateDomain();
+      await domain.registerAndValidateDomain({});
 
       const {
         pricerContract,
         accessType,
         paymentType,
-      } = await zns.subRegistrar.distrConfigs(domain.hash);
+      } = await domain.getDistributionConfig();
 
       expect(pricerContract).to.eq(distrConfig.pricerContract);
       expect(paymentType).to.eq(distrConfig.paymentType);
@@ -537,7 +537,7 @@ describe("ZNSRootRegistrar", () => {
           tokenURI,
         },
       });
-      await domain.registerAndValidateDomain(randomUser);
+      await domain.registerAndValidateDomain({ executor: randomUser });
 
       expect(await domain.ownerOfToken).to.eq(randomUser.address);
     });
@@ -718,7 +718,7 @@ describe("ZNSRootRegistrar", () => {
         },
       });
       // validates in Registry and events
-      await domain.registerAndValidateDomain();
+      await domain.registerAndValidateDomain({});
 
       const namehashRef = hashDomainLabel(defaultDomain);
 
@@ -1236,10 +1236,10 @@ describe("ZNSRootRegistrar", () => {
 
       const asBytes = encodePriceConfig(newConfig);
 
-      await domain.setPricerDataForDomain(
-        newConfig,
-        zns.fixedPricer.target,
-      );
+      await domain.setPricerDataForDomain({
+        priceConfig: newConfig,
+        pricerContract: zns.fixedPricer.target,
+      });
 
       expect(await zns.fixedPricer.getPrice(asBytes, defaultDomain, false)).to.eq(ogPrice);
 
@@ -1259,12 +1259,12 @@ describe("ZNSRootRegistrar", () => {
       expect(exists).to.be.false;
 
       // validate access type has been set to LOCKED
-      const { accessType } = await zns.subRegistrar.distrConfigs(domain.hash);
+      const { accessType } = await domain.getDistributionConfig();
       expect(accessType).to.eq(AccessType.LOCKED);
 
       // validate mintlist has been removed
-      expect(await zns.subRegistrar.isMintlistedForDomain(domain.hash, user.address)).to.be.false;
-      expect(await zns.subRegistrar.isMintlistedForDomain(domain.hash, zeroVault.address)).to.be.false;
+      expect(await domain.isMintlistedForDomain(user)).to.be.false;
+      expect(await domain.isMintlistedForDomain(zeroVault)).to.be.false;
     });
 
     it("Cannot revoke a domain that doesnt exist", async () => {
@@ -1392,10 +1392,10 @@ describe("ZNSRootRegistrar", () => {
       await domain.register();
 
       // assign an operator
-      await domain.setOwnersOperator(
-        operator.address,
-        true,
-      );
+      await domain.setOwnersOperator({
+        operator: operator.address,
+        allowed: true,
+      });
 
       // Revoke the domain
       await domain.revoke();

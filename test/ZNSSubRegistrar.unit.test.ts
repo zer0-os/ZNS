@@ -6,7 +6,7 @@ import {
   AC_UNAUTHORIZED_ERR,
   AC_WRONGADDRESS_ERR,
   AccessType,
-  ADMIN_ROLE, DEFAULT_CURVE_PRICE_CONFIG_BYTES, DEFAULT_FIXED_PRICER_CONFIG_BYTES, DEFAULT_TOKEN_URI, deployZNS,
+  ADMIN_ROLE, decodePriceConfig, DEFAULT_CURVE_PRICE_CONFIG, DEFAULT_CURVE_PRICE_CONFIG_BYTES, DEFAULT_FIXED_PRICER_CONFIG_BYTES, DEFAULT_TOKEN_URI, deployZNS,
   distrConfigEmpty,
   encodePriceConfig,
   getProxyImplAddress,
@@ -28,7 +28,6 @@ import Domain from "./helpers/domain/domain";
 import { getDomainRegisteredEvents } from "./helpers/events";
 import { registrationWithSetup } from "./helpers/register-setup";
 import { IFullDomainConfig } from "./helpers/domain/types";
-import { Addressable } from "ethers";
 
 
 describe("ZNSSubRegistrar Unit Tests", () => {
@@ -547,9 +546,9 @@ describe("ZNSSubRegistrar Unit Tests", () => {
 
     describe("#setDistributionConfigForDomain()", () => {
       it("should re-set distribution config for an existing subdomain", async () => {
-        const domainHash = registeredDomainHashes[2];
+        const domain = domains[2];
 
-        const distrConfigBefore = await zns.subRegistrar.distrConfigs(domainHash);
+        const distrConfigBefore = await domain.getDistributionConfig();
         expect(distrConfigBefore.accessType).to.not.eq(AccessType.MINTLIST);
         expect(distrConfigBefore.pricerContract).to.not.eq(await zns.fixedPricer.getAddress());
         expect(
@@ -565,9 +564,9 @@ describe("ZNSSubRegistrar Unit Tests", () => {
           priceConfig: DEFAULT_FIXED_PRICER_CONFIG_BYTES,
         };
 
-        await domains[2].setDistributionConfigForDomain(newConfig);
+        await domains[2].setDistributionConfigForDomain({ distrConfig: newConfig });
 
-        const distrConfigAfter = await zns.subRegistrar.distrConfigs(domainHash);
+        const distrConfigAfter = await domain.getDistributionConfig();
         expect(distrConfigAfter.accessType).to.eq(newConfig.accessType);
         expect(distrConfigAfter.pricerContract).to.eq(newConfig.pricerContract);
         expect(distrConfigAfter.paymentType).to.eq(newConfig.paymentType);
@@ -579,11 +578,11 @@ describe("ZNSSubRegistrar Unit Tests", () => {
         );
 
         // reset it back
-        await zns.subRegistrar.connect(operator).setDistributionConfigForDomain(
-          domainHash,
-          domainConfigs[2].distrConfig as IDistributionConfig,
-        );
-        const origConfigAfter = await zns.subRegistrar.distrConfigs(domainHash);
+        await domain.setDistributionConfigForDomain({
+          distrConfig: domainConfigs[2].distrConfig as IDistributionConfig,
+          executor: operator,
+        });
+        const origConfigAfter = await domain.getDistributionConfig();
         expect(origConfigAfter.accessType).to.eq(domainConfigs[2].distrConfig?.accessType);
         expect(origConfigAfter.pricerContract).to.eq(domainConfigs[2].distrConfig?.pricerContract);
         expect(
@@ -644,26 +643,26 @@ describe("ZNSSubRegistrar Unit Tests", () => {
 
     describe("#setPricerDataForDomain()", () => {
       it("should re-set pricer contract for an existing subdomain", async () => {
-        const domainHash = registeredDomainHashes[2];
+        const domain = domains[2];
 
-        const pricerContractBefore = await zns.subRegistrar.distrConfigs(domainHash);
+        const pricerContractBefore = await domain.getDistributionConfig();
         expect(pricerContractBefore.pricerContract).to.eq(domainConfigs[2].distrConfig?.pricerContract);
 
-        await zns.subRegistrar.connect(lvl3SubOwner).setPricerDataForDomain(
-          domainHash,
-          DEFAULT_CURVE_PRICE_CONFIG_BYTES,
-          await zns.curvePricer.getAddress(),
-        );
+        await domain.setPricerDataForDomain({
+          priceConfig: DEFAULT_CURVE_PRICE_CONFIG,
+          pricerContract: await zns.curvePricer.getAddress(),
+          executor: lvl3SubOwner,
+        });
 
-        const pricerContractAfter = await zns.subRegistrar.distrConfigs(domainHash);
+        const pricerContractAfter = await domain.getDistributionConfig();
         expect(pricerContractAfter.pricerContract).to.eq(await zns.curvePricer.getAddress());
 
         // reset it back
-        await zns.subRegistrar.connect(lvl3SubOwner).setPricerDataForDomain(
-          domainHash,
-          domainConfigs[2].distrConfig?.priceConfig as string,
-          domainConfigs[2].distrConfig?.pricerContract as string | Addressable,
-        );
+        await domain.setPricerDataForDomain({
+          priceConfig: decodePriceConfig(domainConfigs[2].distrConfig?.priceConfig as string),
+          pricerContract: domainConfigs[2].distrConfig?.pricerContract,
+          executor: lvl3SubOwner,
+        });
       });
 
       it("should NOT allow setting for non-authorized account", async () => {

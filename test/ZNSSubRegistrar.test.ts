@@ -204,7 +204,7 @@ describe("ZNSSubRegistrar", () => {
       });
       await subdomain.register();
 
-      const config = await zns.treasury.paymentConfigs(subdomain.hash);
+      const config = await subdomain.getPaymentConfig();
       expect(config.token).to.eq(ethers.ZeroAddress);
       expect(config.beneficiary).to.eq(ethers.ZeroAddress);
     });
@@ -470,7 +470,7 @@ describe("ZNSSubRegistrar", () => {
           },
         },
       });
-      await subdomain.registerAndValidateDomain();
+      await subdomain.registerAndValidateDomain({});
     });
 
     it("should register a subdomain with token assigned to a different address if provided", async () => {
@@ -642,7 +642,7 @@ describe("ZNSSubRegistrar", () => {
           },
         },
       });
-      await subdomain.registerAndValidateDomain();
+      await subdomain.registerAndValidateDomain({});
     });
 
     // ! this value can change based on the block gas limit !
@@ -676,7 +676,7 @@ describe("ZNSSubRegistrar", () => {
           paymentConfig: FULL_DISTR_CONFIG_EMPTY.paymentConfig,
         },
       });
-      await subdomain.registerAndValidateDomain();
+      await subdomain.registerAndValidateDomain({});
     });
 
     it("should revert when user has insufficient funds", async () => {
@@ -857,10 +857,10 @@ describe("ZNSSubRegistrar", () => {
 
       decodedConfig.feePercentage = BigInt(0);
 
-      await domain2.setPricerDataForDomain(
-        decodedConfig,
-        currDistrConfig.pricerContract,
-      );
+      await domain2.setPricerDataForDomain({
+        priceConfig: decodedConfig,
+        pricerContract: currDistrConfig.pricerContract,
+      });
 
       // try register a subdomain again
       await subdomain2.register();
@@ -919,7 +919,7 @@ describe("ZNSSubRegistrar", () => {
           zns,
           domainConfig: config,
         });
-        await domain.registerAndValidateDomain(executor ? executor : config.owner);
+        await domain.registerAndValidateDomain({ executor: executor ? executor : config.owner });
 
         domObj = {
           domainHash: domain.hash,
@@ -1603,7 +1603,7 @@ describe("ZNSSubRegistrar", () => {
           tokenURI: DEFAULT_TOKEN_URI,
         },
       });
-      await subdomain.registerAndValidateDomain();
+      await subdomain.registerAndValidateDomain({});
     });
 
     it("should NOT register a child (subdomain) under a parent (root domain) that has been revoked", async () => {
@@ -1642,7 +1642,7 @@ describe("ZNSSubRegistrar", () => {
         zns,
         domainConfig: domainConfigs[0],
       });
-      await domain.registerAndValidateDomain();
+      await domain.registerAndValidateDomain({});
     });
 
     it("should NOT register a child (subdomain) under a parent (subdomain) that has been revoked", async () => {
@@ -1716,7 +1716,7 @@ describe("ZNSSubRegistrar", () => {
           },
         },
       });
-      await subdomain.registerAndValidateDomain();
+      await subdomain.registerAndValidateDomain({});
 
       expect(subdomain.hash).to.eq(regResults[1].domainHash);
 
@@ -1750,7 +1750,7 @@ describe("ZNSSubRegistrar", () => {
           },
         },
       });
-      await newChildHash.registerAndValidateDomain(branchLvl2Owner);
+      await newChildHash.registerAndValidateDomain({ executor: branchLvl2Owner });
 
       const childBalAfter = await zns.meowToken.balanceOf(branchLvl2Owner.address);
 
