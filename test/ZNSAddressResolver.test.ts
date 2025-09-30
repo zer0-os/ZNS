@@ -142,10 +142,10 @@ describe("ZNSAddressResolver", () => {
   });
 
   it("Should allow operator to setAddress and emit event", async () => {
-    await domain.setOwnersOperator({
-      operator: operator.address,
-      allowed: true,
-    });
+    await domain.setOwnersOperator(
+      operator.address,
+      true,
+    );
 
     await expect(
       zns.addressResolver.connect(operator)

@@ -101,6 +101,10 @@ export default class Domain {
     return this.zns.domainToken.ownerOf(this.tokenId);
   }
 
+  async getPaymentConfig () : Promise<IPaymentConfig> {
+    return this.zns.treasury.getPaymentConfig(this.hash);
+  }
+
   async isOwnerOrOperator (candidate : SignerWithAddress) : Promise<boolean> {
     return this.zns.registry.isOwnerOrOperator(this.hash, candidate.address);
   }

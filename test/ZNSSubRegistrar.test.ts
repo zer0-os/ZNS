@@ -165,7 +165,7 @@ describe("ZNSSubRegistrar", () => {
       });
       await subdomain.register(lvl2SubOwner);
 
-      const config = await subdomain.getPaymentConfig();
+      const config = await subdomain.paymentConfig;
       expect(config.token).to.eq(await zns.meowToken.getAddress());
       expect(config.beneficiary).to.eq(lvl2SubOwner.address);
     });
@@ -204,7 +204,7 @@ describe("ZNSSubRegistrar", () => {
       });
       await subdomain.register();
 
-      const config = await subdomain.getPaymentConfig();
+      const config = await zns.treasury.paymentConfigs(subdomain.hash);
       expect(config.token).to.eq(ethers.ZeroAddress);
       expect(config.beneficiary).to.eq(ethers.ZeroAddress);
     });
@@ -857,10 +857,10 @@ describe("ZNSSubRegistrar", () => {
 
       decodedConfig.feePercentage = BigInt(0);
 
-      await domain2.setPricerDataForDomain({
-        priceConfig: decodedConfig,
-        pricerContract: currDistrConfig.pricerContract,
-      });
+      await domain2.setPricerDataForDomain(
+        decodedConfig,
+        currDistrConfig.pricerContract,
+      );
 
       // try register a subdomain again
       await subdomain2.register();
@@ -908,7 +908,7 @@ describe("ZNSSubRegistrar", () => {
         // the first domain is root
         if (!config.parentHash) {
           if (i !== 0) {
-            config.parentHash = domObj?.domainHash;
+            config.parentHash = domObj?.domainHash as string; // parent is the previous domain
           } else {
             config.parentHash = ethers.ZeroHash;
           }
@@ -1489,7 +1489,7 @@ describe("ZNSSubRegistrar", () => {
       // check a couple of fields from price config
       const distrConfig = await zns.subRegistrar.distrConfigs(lvl2Hash);
       const priceConfig = decodePriceConfig(distrConfig.priceConfig);
-      const priceConfigFromDomain = decodePriceConfig(domainConfigs[1].distrConfig.priceConfig);
+      const priceConfigFromDomain = decodePriceConfig(domainConfigs[1].distrConfig?.priceConfig as string);
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       if ("maxPrice" in priceConfigFromDomain) {
@@ -1726,8 +1726,7 @@ describe("ZNSSubRegistrar", () => {
         allowed: [ true ],
       });
 
-      const parentOwnerFromReg = await subdomain.getDomainOwner();
-      expect(parentOwnerFromReg).to.eq(branchLvl1Owner.address);
+      expect(await subdomain.ownerOfHash).to.eq(branchLvl1Owner.address);
 
       const childBalBefore = await zns.meowToken.balanceOf(branchLvl2Owner.address);
 

@@ -31,7 +31,7 @@ import { IFullDomainConfig } from "./helpers/domain/types";
 import { Addressable } from "ethers";
 
 
-describe.only("ZNSSubRegistrar Unit Tests", () => {
+describe("ZNSSubRegistrar Unit Tests", () => {
   let deployer : SignerWithAddress;
   let rootOwner : SignerWithAddress;
   let specificRootOwner : SignerWithAddress;
