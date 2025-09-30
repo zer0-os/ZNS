@@ -28,6 +28,7 @@ import Domain from "./helpers/domain/domain";
 import { getDomainRegisteredEvents } from "./helpers/events";
 import { registrationWithSetup } from "./helpers/register-setup";
 import { IFullDomainConfig } from "./helpers/domain/types";
+import { Addressable } from "ethers";
 
 
 describe.only("ZNSSubRegistrar Unit Tests", () => {
@@ -580,15 +581,15 @@ describe.only("ZNSSubRegistrar Unit Tests", () => {
         // reset it back
         await zns.subRegistrar.connect(operator).setDistributionConfigForDomain(
           domainHash,
-          domainConfigs[2].distrConfig,
+          domainConfigs[2].distrConfig as IDistributionConfig,
         );
         const origConfigAfter = await zns.subRegistrar.distrConfigs(domainHash);
-        expect(origConfigAfter.accessType).to.eq(domainConfigs[2].distrConfig.accessType);
-        expect(origConfigAfter.pricerContract).to.eq(domainConfigs[2].distrConfig.pricerContract);
+        expect(origConfigAfter.accessType).to.eq(domainConfigs[2].distrConfig?.accessType);
+        expect(origConfigAfter.pricerContract).to.eq(domainConfigs[2].distrConfig?.pricerContract);
         expect(
           origConfigAfter.paymentType
         ).to.eq(
-          domainConfigs[2].distrConfig.paymentType
+          domainConfigs[2].distrConfig?.paymentType
         );
 
         // remove operator
@@ -646,7 +647,7 @@ describe.only("ZNSSubRegistrar Unit Tests", () => {
         const domainHash = registeredDomainHashes[2];
 
         const pricerContractBefore = await zns.subRegistrar.distrConfigs(domainHash);
-        expect(pricerContractBefore.pricerContract).to.eq(domainConfigs[2].distrConfig.pricerContract);
+        expect(pricerContractBefore.pricerContract).to.eq(domainConfigs[2].distrConfig?.pricerContract);
 
         await zns.subRegistrar.connect(lvl3SubOwner).setPricerDataForDomain(
           domainHash,
@@ -660,8 +661,8 @@ describe.only("ZNSSubRegistrar Unit Tests", () => {
         // reset it back
         await zns.subRegistrar.connect(lvl3SubOwner).setPricerDataForDomain(
           domainHash,
-          domainConfigs[2].distrConfig.priceConfig,
-          domainConfigs[2].distrConfig.pricerContract,
+          domainConfigs[2].distrConfig?.priceConfig as string,
+          domainConfigs[2].distrConfig?.pricerContract as string | Addressable,
         );
       });
 
@@ -701,7 +702,7 @@ describe.only("ZNSSubRegistrar Unit Tests", () => {
         const domainHash = registeredDomainHashes[2];
 
         const { paymentType: paymentTypeBefore } = await zns.subRegistrar.distrConfigs(domainHash);
-        expect(paymentTypeBefore).to.eq(domainConfigs[2].distrConfig.paymentType);
+        expect(paymentTypeBefore).to.eq(domainConfigs[2].distrConfig?.paymentType);
 
         await zns.subRegistrar.connect(lvl3SubOwner).setPaymentTypeForDomain(
           domainHash,
@@ -714,7 +715,7 @@ describe.only("ZNSSubRegistrar Unit Tests", () => {
         // reset it back
         await zns.subRegistrar.connect(lvl3SubOwner).setPaymentTypeForDomain(
           domainHash,
-          domainConfigs[2].distrConfig.paymentType,
+          domainConfigs[2].distrConfig?.paymentType as bigint,
         );
       });
 
@@ -745,7 +746,7 @@ describe.only("ZNSSubRegistrar Unit Tests", () => {
         // reset back
         await zns.subRegistrar.connect(lvl3SubOwner).setPaymentTypeForDomain(
           domainHash,
-          domainConfigs[2].distrConfig.paymentType,
+          domainConfigs[2].distrConfig?.paymentType as bigint,
         );
       });
     });
