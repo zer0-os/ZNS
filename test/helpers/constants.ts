@@ -110,6 +110,7 @@ export const registryName = "ZNSRegistry";
 export const domainTokenName = "ZNSDomainToken";
 export const meowTokenMockName = "ERC20Mock";
 export const addressResolverName = "ZNSAddressResolver";
+export const stringResolverName = "ZNSStringResolver";
 export const curvePricerName = "ZNSCurvePricer";
 export const fixedPricerName = "ZNSFixedPricer";
 export const treasuryName = "ZNSTreasury";

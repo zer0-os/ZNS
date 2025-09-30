@@ -1,16 +1,29 @@
 import * as hre from "hardhat";
 import { IZNSContracts } from "../../../src/deploy/campaign/types";
 import { IFullDomainConfig } from "./types";
-import { IDistributionConfig, IPaymentConfig } from "../types";
+import {
+  IDistributionConfig,
+  IPaymentConfig,
+} from "../types";
 import {
   ICurvePriceConfig,
   IFixedPriceConfig,
 } from "../../../src/deploy/missions/types";
-import { curvePriceConfigEmpty, distrConfigEmpty, fixedPriceConfigEmpty, paymentConfigEmpty } from "../constants";
+import {
+  AccessType,
+  curvePriceConfigEmpty,
+  distrConfigEmpty,
+  fixedPriceConfigEmpty,
+  paymentConfigEmpty,
+  PaymentType,
+} from "../constants";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { fundApprove } from "../register-setup";
-import { ContractTransactionResponse } from "ethers";
+import {
+  Addressable,
+  ContractTransactionResponse,
+} from "ethers";
 import { expect } from "chai";
 import { encodePriceConfig } from "../pricing";
 
@@ -39,13 +52,15 @@ export default class Domain {
     zns : IZNSContracts;
     domainConfig : IFullDomainConfig;
   }) {
+    // setting up all nessesary params for a Domain
     this.zns = zns;
-
     this.owner = domainConfig.owner;
+    this.label = domainConfig.label;
+
+    // setting up all optional params
     this.parentHash = domainConfig.parentHash || hre.ethers.ZeroHash;
     this.isRoot = this.parentHash === hre.ethers.ZeroHash;
-    this.label = domainConfig.label;
-    this.tokenOwner = domainConfig.tokenOwner || hre.ethers.ZeroAddress;
+    this.tokenOwner = domainConfig.tokenOwner || this.owner.address;
     this.distrConfig = domainConfig.distrConfig || distrConfigEmpty;
 
     if (!domainConfig.priceConfig) {
@@ -63,6 +78,10 @@ export default class Domain {
       this.priceConfig = domainConfig.priceConfig;
     }
 
+    if (!this.distrConfig.priceConfig) {
+      this.distrConfig.priceConfig = encodePriceConfig(this.priceConfig);
+    }
+
     this.paymentConfig = domainConfig.paymentConfig || paymentConfigEmpty;
     this.domainAddress = domainConfig.domainAddress || this.owner.address;
     this.tokenURI = domainConfig.tokenURI || "https://example.com/token-uri";
@@ -74,7 +93,19 @@ export default class Domain {
     return BigInt(this.hash);
   }
 
-  async getDomainHashFromEvent (domainOwner ?: SignerWithAddress) : Promise<string> {
+  get ownerOfHash () : Promise<string> {
+    return this.zns.registry.getDomainOwner(this.hash);
+  }
+
+  get ownerOfToken () : Promise<string> {
+    return this.zns.domainToken.ownerOf(this.tokenId);
+  }
+
+  async isOwnerOrOperator (candidate : SignerWithAddress) : Promise<boolean> {
+    return this.zns.registry.isOwnerOrOperator(this.hash, candidate.address);
+  }
+
+  private async getDomainHashFromEvent (domainOwner ?: SignerWithAddress) : Promise<string> {
     const latestBlock = await time.latestBlock();
     const filter = this.zns.rootRegistrar.filters.DomainRegistered(
       undefined,
@@ -93,7 +124,7 @@ export default class Domain {
     return domainHash;
   }
 
-  async mintAndApproveForDomain (user ?: SignerWithAddress) : Promise<ContractTransactionResponse> {
+  async mintAndApproveForDomain (user ?: SignerWithAddress) : Promise<ContractTransactionResponse | undefined> {
     return (fundApprove({
       zns: this.zns,
       parentHash: this.parentHash,
@@ -113,21 +144,17 @@ export default class Domain {
       tokenURI,
       tokenOwner,
       domainAddress,
+      isRoot,
     } = this;
 
-    const signer = !executor ? owner : executor;
-
-    if (!distrConfig.priceConfig) {
-      distrConfig.priceConfig = encodePriceConfig(this.priceConfig);
-    }
-
     let txPromise : ContractTransactionResponse;
+    const caller = executor ? executor : owner;
 
     // mint and approve strict amount of tokens for domain registration
-    await this.mintAndApproveForDomain(signer);
+    await this.mintAndApproveForDomain(caller);
 
-    if (this.isRoot) {
-      txPromise = await zns.rootRegistrar.connect(signer).registerRootDomain({
+    if (isRoot) {
+      txPromise = await zns.rootRegistrar.connect(caller).registerRootDomain({
         name: label,
         domainAddress: hre.ethers.isAddress(domainAddress) ? domainAddress : owner.address,
         tokenOwner,
@@ -136,7 +163,7 @@ export default class Domain {
         paymentConfig,
       });
     } else {
-      txPromise = await zns.subRegistrar.connect(signer).registerSubdomain({
+      txPromise = await zns.subRegistrar.connect(caller).registerSubdomain({
         parentHash,
         label,
         domainAddress: hre.ethers.isAddress(domainAddress) ? domainAddress : owner.address,
@@ -147,7 +174,7 @@ export default class Domain {
       });
     }
 
-    this.hash = await this.getDomainHashFromEvent(signer);
+    this.hash = await this.getDomainHashFromEvent(caller);
 
     return txPromise;
   }
@@ -169,17 +196,15 @@ export default class Domain {
     );
   }
 
-  async updateDomainRecord ({
-    resolverType,
-    executor,
-  } : {
-    resolverType : string;
-    executor ?: SignerWithAddress;
-  }) : Promise<ContractTransactionResponse> {
+  async updateDomainRecord (
+    resolverType ?: string,
+    newOwner ?: string,
+    executor ?: SignerWithAddress
+  ) : Promise<ContractTransactionResponse> {
     return this.zns.registry.connect(executor ? executor : this.owner).updateDomainRecord(
       this.hash,
-      this.owner,
-      resolverType,
+      newOwner ? newOwner : this.owner,
+      resolverType ? resolverType : "address",
     );
   }
 
@@ -202,93 +227,81 @@ export default class Domain {
     );
   }
 
-  // ------------------------------------------------------
-  // GETTERS
-  // ------------------------------------------------------
-  async getDomainRecord () : Promise<{
-    owner : string;
-    resolver : string;
-  }> {
-    return this.zns.registry.getDomainRecord(this.hash);
-  }
-
-  async getPaymentConfig () : Promise<IPaymentConfig> {
-    return this.zns.treasury.paymentConfigs(this.hash);
-  }
-
-  async getDomainOwner () : Promise<string> {
-    return this.zns.registry.getDomainOwner(this.hash);
-  }
-
-  async getOwnerOf () : Promise<string> {
-    return this.zns.domainToken.ownerOf(this.tokenId);
-  }
-
-  // ------------------------------------------------------
-  // SETTERS
-  // ------------------------------------------------------
-  async setOwnersOperator ({
-    operator,
-    allowed,
-    executor,
-  } : {
-    operator : string;
-    allowed : boolean;
-    executor ?: SignerWithAddress;
-  }) : Promise<ContractTransactionResponse> {
+  async setOwnersOperator (
+    operator : string,
+    allowed : boolean,
+    executor ?: SignerWithAddress
+  ) : Promise<ContractTransactionResponse> {
     return this.zns.registry.connect(executor ? executor : this.owner).setOwnersOperator(operator, allowed);
   }
 
   async setDistributionConfigForDomain (
-    distrConfig ?: IDistributionConfig,
-    executor ?: SignerWithAddress,
+    distrConfig : IDistributionConfig,
+    executor ?: SignerWithAddress
   ) {
+    const currentConfig = distrConfig ? distrConfig : this.distrConfig;
+
     await this.zns.subRegistrar.connect(executor ? executor : this.owner).setDistributionConfigForDomain(
       this.hash,
-      distrConfig ? distrConfig : this.distrConfig,
+      currentConfig,
     );
+
+    // updating local var
+    this.distrConfig = currentConfig;
   }
 
-  async setPricerDataForDomain ({
-    priceConfig,
-    pricerContract,
-    executor,
-  } : {
-    priceConfig ?: ICurvePriceConfig | IFixedPriceConfig;
-    pricerContract ?: string;
-    executor ?: SignerWithAddress;
-  }) : Promise<ContractTransactionResponse> {
-    return this.zns.subRegistrar.connect(executor ? executor : this.owner).setPricerDataForDomain(
-      this.hash,
-      priceConfig ? encodePriceConfig(priceConfig) : encodePriceConfig(this.priceConfig),
-      pricerContract ? pricerContract : this.distrConfig.pricerContract
-    );
+  async setPricerDataForDomain (
+    priceConfig ?: ICurvePriceConfig | IFixedPriceConfig,
+    pricerContract ?: string | Addressable,
+    executor ?: SignerWithAddress
+  ) {
+    if (priceConfig ||
+      this.priceConfig !== undefined ||
+      Object.keys(this.priceConfig).length === 0
+    ) {
+      await this.zns.subRegistrar.connect(executor ? executor : this.owner).setPricerDataForDomain(
+        this.hash,
+        priceConfig ? encodePriceConfig(priceConfig) : encodePriceConfig(this.priceConfig),
+        pricerContract ? pricerContract : this.distrConfig.pricerContract
+      );
+    } else {
+      throw new Error("Domain Helper: priceConfig is not specified");
+    }
+
+    // updating local var
+    if (priceConfig) {
+      this.priceConfig = priceConfig;
+    }
   }
 
-  async setPaymentTypeForDomain ({
-    paymentType,
-    executor,
-  } : {
-    paymentType : bigint;
-    executor ?: SignerWithAddress;
-  }) : Promise<ContractTransactionResponse> {
-    return this.zns.subRegistrar.connect(executor ? executor : this.owner).setPaymentTypeForDomain(
-      this.hash,
-      paymentType,
-    );
+  async setPaymentTypeForDomain (
+    paymentType : bigint,
+    executor ?: SignerWithAddress
+  ) : Promise<ContractTransactionResponse | undefined> {
+    if (Object.values(PaymentType).includes(paymentType)) {
+      return this.zns.subRegistrar.connect(executor ? executor : this.owner).setPaymentTypeForDomain(
+        this.hash,
+        paymentType,
+      );
+    }
+
+    // updating local var
+    this.distrConfig.paymentType = paymentType;
   }
 
-  async setAccessTypeForDomain ({
-    accessType,
-    executor,
-  } : {
-    accessType : bigint;
-    executor ?: SignerWithAddress;
-  }) : Promise<ContractTransactionResponse> {
-    return this.zns.subRegistrar.connect(executor ? executor : this.owner).setAccessTypeForDomain(
-      this.hash,
-      accessType,
-    );
+  async setAccessTypeForDomain (
+    accessType : bigint,
+    executor ?: SignerWithAddress
+  ) : Promise<ContractTransactionResponse | undefined> {
+    if (!Object.values(AccessType).includes(accessType)) {
+      return this.zns.subRegistrar.connect(executor ? executor : this.owner).setAccessTypeForDomain(
+        this.hash,
+        accessType,
+      );
+    }
+
+    // updating local var
+    this.distrConfig.accessType = accessType;
   }
 
   async setPaymentTokenForDomain ({
@@ -311,13 +324,21 @@ export default class Domain {
   // ------------------------------------------------------
   // VALIDATION
   // ------------------------------------------------------
-  async validate ({
-    txPromise,
-    executor,
-  } : {
-    txPromise : ContractTransactionResponse;
-    executor ?: SignerWithAddress;
-  }) {
+  async registerAndValidateDomain (
+    executor ?: SignerWithAddress,
+    domainOwner ?: string,
+    tokenOwner ?: string,
+  ) : Promise<void> {
+    const caller = executor ? executor : this.owner;
+    const txPromise = await this.register(caller);
+
+    if (!domainOwner) {
+      domainOwner = caller.address;
+    }
+    if (!tokenOwner) {
+      tokenOwner = caller.address;
+    }
+
     // check domain existence with event
     await expect(txPromise)
       .to.emit(
@@ -329,34 +350,24 @@ export default class Domain {
         this.label,
         BigInt(this.hash),
         this.tokenURI,
-        executor ? executor.address : this.owner.address,
-        executor ? executor.address : this.owner.address,
+        domainOwner,
+        tokenOwner,
         this.domainAddress
       );
 
     // check domain existence with registry
     const record = await this.zns.registry.getDomainRecord(this.hash);
-    const resolverAddress = await this.zns.registry.getDomainResolver(this.hash);
+    const resolverTypeReference = this.domainAddress === hre.ethers.ZeroAddress ? "" : "address";
+    const resolverAddressReference = await this.zns.registry.getResolverType(resolverTypeReference);
 
     expect(
       await this.zns.registry.getDomainOwner(this.hash)
-    ).to.equal(executor ? executor.address : this.owner.address);
-    expect(record.owner).to.equal(executor ? executor.address : this.owner.address);
-    expect(record.resolver).to.equal(resolverAddress);
+    ).to.equal(caller);
+    expect(record.owner).to.equal(domainOwner);
+    expect(record.resolver).to.equal(resolverAddressReference);
 
     expect(
       await this.zns.domainToken.tokenURI(this.hash)
     ).to.equal(this.tokenURI);
-  }
-
-  async registerAndValidateDomain (
-    executor ?: SignerWithAddress
-  ) : Promise<void> {
-    const txPromise = await this.register(executor ? executor : this.owner);
-
-    await this.validate({
-      txPromise,
-      executor,
-    });
   }
 }

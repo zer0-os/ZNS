@@ -7,10 +7,10 @@ import {
   STAKING_TOKEN_ERR,
   INVALID_CURVE_ERR,
   MONGO_URI_ERR,
-  INVALID_ENV_ERR, NO_ZERO_VAULT_ERR, encodePriceConfig, IFixedPriceConfig, PaymentType,
+  INVALID_ENV_ERR, NO_ZERO_VAULT_ERR, encodePriceConfig, PaymentType,
 } from "../../../test/helpers";
 import { ethers } from "ethers";
-import { ICurvePriceConfig } from "../missions/types";
+import { ICurvePriceConfig, IFixedPriceConfig } from "../missions/types";
 import { MEOWzChainData } from "../missions/contracts/meow-token/mainnet-data";
 import { EnvironmentLevels, TEnvironment } from "@zero-tech/zdc";
 import { findMissingEnvVars } from "../../environment/validate";

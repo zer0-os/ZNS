@@ -1,4 +1,3 @@
-// eslint-disable-next-line no-redeclare
 export interface ICurvePriceConfig {
   maxPrice : bigint;
   curveMultiplier : bigint;
@@ -12,4 +11,3 @@ export interface IFixedPriceConfig {
   price : bigint;
   feePercentage : bigint;
 }
-

@@ -7,7 +7,6 @@ import {
   encodePriceConfig,
   decodePriceConfig,
   DEFAULT_PROTOCOL_FEE_PERCENT,
-  IFixedPriceConfig,
   INVALID_CONFIG_LENGTH_ERR,
   FEE_TOO_LARGE_ERR,
   PaymentType,
@@ -19,6 +18,7 @@ import * as ethers from "ethers";
 import { registrationWithSetup } from "./helpers/register-setup";
 import { expect } from "chai";
 import { IZNSContracts } from "../src/deploy/campaign/types";
+import { IFixedPriceConfig } from "../src/deploy/missions/types";
 
 
 describe("ZNSFixedPricer", () => {

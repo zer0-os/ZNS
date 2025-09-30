@@ -13,4 +13,3 @@ export { EXECUTOR_ROLE } from "../../src/deploy/constants";
 export { REGISTRAR_ROLE } from "../../src/deploy/constants";
 export { ADMIN_ROLE } from "../../src/deploy/constants";
 export { GOVERNOR_ROLE } from "../../src/deploy/constants";
-export { IFixedPriceConfig } from "../../src/deploy/missions/types";
