@@ -240,11 +240,12 @@ export default class Domain {
   }
 
   async setDistributionConfigForDomain (
-    executor ?: SignerWithAddress
-  ) : Promise<ContractTransactionResponse> {
-    return this.zns.subRegistrar.connect(executor ? executor : this.owner).setDistributionConfigForDomain(
+    distrConfig ?: IDistributionConfig,
+    executor ?: SignerWithAddress,
+  ) {
+    await this.zns.subRegistrar.connect(executor ? executor : this.owner).setDistributionConfigForDomain(
       this.hash,
-      this.distrConfig,
+      distrConfig ? distrConfig : this.distrConfig,
     );
   }
 

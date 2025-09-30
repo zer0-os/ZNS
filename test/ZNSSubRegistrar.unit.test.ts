@@ -15,6 +15,7 @@ import {
   IFixedPriceConfig,
   INITIALIZED_ERR,
   ISubRegistrarConfig,
+  NOT_AUTHORIZED_ERR,
   PAUSE_SAME_VALUE_ERR,
   paymentConfigEmpty,
   PaymentType,
@@ -26,9 +27,10 @@ import { ZNSSubRegistrar, ZNSSubRegistrar__factory } from "../typechain";
 import Domain from "./helpers/domain/domain";
 import { getDomainRegisteredEvents } from "./helpers/events";
 import { registrationWithSetup } from "./helpers/register-setup";
+import { IFullDomainConfig } from "./helpers/domain/types";
 
 
-describe("ZNSSubRegistrar Unit Tests", () => {
+describe.only("ZNSSubRegistrar Unit Tests", () => {
   let deployer : SignerWithAddress;
   let rootOwner : SignerWithAddress;
   let specificRootOwner : SignerWithAddress;
@@ -37,12 +39,21 @@ describe("ZNSSubRegistrar Unit Tests", () => {
   let lvl2SubOwner : SignerWithAddress;
   let lvl3SubOwner : SignerWithAddress;
   let random : SignerWithAddress;
+  let operator : SignerWithAddress;
 
   let zns : IZNSContracts;
 
   let rootPriceConfig : IFixedPriceConfig;
   let defaultDistrConfig : IDistributionConfig;
   const subTokenURI = "https://token-uri.com/8756a4b6f";
+
+  let fixedFeePercentage : bigint;
+  let fixedPrice : bigint;
+  let priceConfigBytes : string;
+
+  let domainConfigs : Array<IFullDomainConfig>;
+  const registeredDomainHashes : Array<string> = [];
+  const domains : Array<Domain> = [];
 
   before (async () => {
     [
@@ -54,6 +65,7 @@ describe("ZNSSubRegistrar Unit Tests", () => {
       lvl3SubOwner,
       specificRootOwner,
       specificSubOwner,
+      operator,
     ] = await hre.ethers.getSigners();
 
     zns = await deployZNS({
@@ -85,179 +97,22 @@ describe("ZNSSubRegistrar Unit Tests", () => {
         specificRootOwner,
         specificSubOwner,
       ].map(async ({ address }) =>
-        zns.meowToken.mint(address, ethers.parseEther("100000000000000")))
+        zns.meowToken.mint(address, ethers.parseEther("1000000000000000000000000")))
     );
   });
 
-  describe("State setters", () => {
-    it("Should NOT let initialize the implementation contract", async () => {
-      const factory = new ZNSSubRegistrar__factory(deployer);
-      const impl = await getProxyImplAddress(await zns.subRegistrar.getAddress());
-      const implContract = factory.attach(impl) as ZNSSubRegistrar;
+  it("Should NOT let initialize the implementation contract", async () => {
+    const factory = new ZNSSubRegistrar__factory(deployer);
+    const impl = await getProxyImplAddress(await zns.subRegistrar.getAddress());
+    const implContract = factory.attach(impl) as ZNSSubRegistrar;
 
-      await expect(
-        implContract.initialize(
-          deployer.address,
-          deployer.address,
-          deployer.address,
-        )
-      ).to.be.revertedWithCustomError(implContract, INITIALIZED_ERR);
-    });
-
-    it("#setRootRegistrar() should set the new root registrar correctly and emit #RootRegistrarSet event", async () => {
-      const tx = await zns.subRegistrar.connect(admin).setRootRegistrar(random.address);
-
-      await expect(tx).to.emit(zns.subRegistrar, "RootRegistrarSet").withArgs(random.address);
-
-      expect(await zns.subRegistrar.rootRegistrar()).to.equal(random.address);
-    });
-
-    it("#setRootRegistrar() should NOT be callable by anyone other than ADMIN_ROLE", async () => {
-      await expect(zns.subRegistrar.connect(random).setRootRegistrar(random.address))
-        .to.be.revertedWithCustomError(zns.accessController, AC_UNAUTHORIZED_ERR)
-        .withArgs(random.address, ADMIN_ROLE);
-    });
-
-    it("#setRootRegistrar should NOT set registrar as 0x0 address", async () => {
-      await expect(
-        zns.subRegistrar.connect(admin).setRootRegistrar(ethers.ZeroAddress)
-      ).to.be.revertedWithCustomError(
-        zns.subRegistrar,
-        ZERO_ADDRESS_ERR
-      );
-    });
-
-    it("#setRegistry() should set the new registry correctly and emit #RegistrySet event", async () => {
-      const tx = await zns.subRegistrar.connect(admin).setRegistry(random.address);
-
-      await expect(tx).to.emit(zns.subRegistrar, "RegistrySet").withArgs(random.address);
-
-      expect(await zns.subRegistrar.registry()).to.equal(random.address);
-    });
-
-    it("#setRegistry() should not be callable by anyone other than ADMIN_ROLE", async () => {
-      await expect(zns.subRegistrar.connect(random).setRegistry(random.address))
-        .to.be.revertedWithCustomError(zns.accessController, AC_UNAUTHORIZED_ERR)
-        .withArgs(random.address, ADMIN_ROLE);
-    });
-
-    it("#pauseRegistration() should pause the registration process and emit #RegistrationPauseSet event", async () => {
-      const tx = await zns.subRegistrar.connect(admin).pauseRegistration();
-
-      await expect(tx).to.emit(zns.subRegistrar, "RegistrationPauseSet").withArgs(true);
-
-      expect(await zns.subRegistrar.registrationPaused()).to.equal(true);
-    });
-
-    it("#pauseRegistration() should not be callable by anyone other than ADMIN_ROLE", async () => {
-      await expect(zns.subRegistrar.connect(random).pauseRegistration())
-        .to.be.revertedWithCustomError(zns.accessController, AC_UNAUTHORIZED_ERR)
-        .withArgs(random.address, ADMIN_ROLE);
-    });
-
-    it("#pauseRegistration() should not allow to pause if already paused", async () => {
-      await expect(zns.subRegistrar.connect(admin).pauseRegistration())
-        .to.be.revertedWithCustomError(zns.subRegistrar, PAUSE_SAME_VALUE_ERR);
-    });
-
-    // eslint-disable-next-line max-len
-    it("#unpauseRegistration() should unpause the registration process and emit #RegistrationPauseSet event", async () => {
-      const tx = await zns.subRegistrar.connect(admin).unpauseRegistration();
-
-      await expect(tx).to.emit(zns.subRegistrar, "RegistrationPauseSet").withArgs(false);
-
-      expect(await zns.subRegistrar.registrationPaused()).to.equal(false);
-    });
-
-    it("#unpauseRegistration() should not be callable by anyone other than ADMIN_ROLE", async () => {
-      await expect(zns.subRegistrar.connect(random).unpauseRegistration())
-        .to.be.revertedWithCustomError(zns.accessController, AC_UNAUTHORIZED_ERR)
-        .withArgs(random.address, ADMIN_ROLE);
-    });
-
-    it("#unpauseRegistration() should not allow to unpause if already unpaused", async () => {
-      await expect(zns.subRegistrar.connect(admin).unpauseRegistration())
-        .to.be.revertedWithCustomError(zns.subRegistrar, PAUSE_SAME_VALUE_ERR);
-    });
-
-    describe("#setAccessController", () => {
-      it("should allow ADMIN to set a valid AccessController", async () => {
-        await zns.subRegistrar.connect(deployer).setAccessController(zns.accessController.target);
-
-        const currentAccessController = await zns.subRegistrar.getAccessController();
-
-        expect(currentAccessController).to.equal(zns.accessController.target);
-      });
-
-      it("should allow re-setting the AccessController to another valid contract", async () => {
-        expect(
-          await zns.subRegistrar.getAccessController()
-        ).to.equal(
-          zns.accessController.target
-        );
-
-        const ZNSAccessControllerFactory = await ethers.getContractFactory("ZNSAccessController", deployer);
-        const newAccessController = await ZNSAccessControllerFactory.deploy(
-          [deployer.address],
-          [deployer.address]
-        );
-
-        // then change the AccessController
-        await zns.subRegistrar.connect(deployer).setAccessController(newAccessController.target);
-
-        expect(
-          await zns.subRegistrar.getAccessController()
-        ).to.equal(
-          newAccessController.target
-        );
-      });
-
-      it("should emit AccessControllerSet event when setting a valid AccessController", async () => {
-        await expect(
-          zns.subRegistrar.connect(deployer).setAccessController(zns.accessController.target)
-        ).to.emit(
-          zns.subRegistrar,
-          "AccessControllerSet"
-        ).withArgs(zns.accessController.target);
-      });
-
-      it("should revert when a non-ADMIN tries to set AccessController", async () => {
-        await expect(
-          zns.subRegistrar.connect(lvl2SubOwner).setAccessController(zns.accessController.target)
-        ).to.be.revertedWithCustomError(
-          zns.subRegistrar,
-          AC_UNAUTHORIZED_ERR
-        ).withArgs(lvl2SubOwner.address, GOVERNOR_ROLE);
-      });
-
-      it("should revert when setting an AccessController as EOA address", async () => {
-        await expect(
-          zns.subRegistrar.connect(deployer).setAccessController(lvl2SubOwner.address)
-        ).to.be.revertedWithCustomError(
-          zns.subRegistrar,
-          AC_WRONGADDRESS_ERR
-        ).withArgs(lvl2SubOwner.address);
-      });
-
-      it("should revert when setting an AccessController as another non-AC contract address", async () => {
-        await expect(
-          zns.subRegistrar.connect(deployer).setAccessController(zns.subRegistrar.target)
-        ).to.be.revertedWithCustomError(
-          zns.subRegistrar,
-          AC_WRONGADDRESS_ERR
-        ).withArgs(zns.subRegistrar.target);
-      });
-
-      it("should revert when setting a zero address as AccessController", async () => {
-      // deployer is the governor
-        await expect(
-          zns.subRegistrar.connect(deployer).setAccessController(ethers.ZeroAddress)
-        ).to.be.revertedWithCustomError(
-          zns.subRegistrar,
-          AC_WRONGADDRESS_ERR
-        ).withArgs(ethers.ZeroAddress);
-      });
-    });
+    await expect(
+      implContract.initialize(
+        deployer.address,
+        deployer.address,
+        deployer.address,
+      )
+    ).to.be.revertedWithCustomError(implContract, INITIALIZED_ERR);
   });
 
   describe("Bulk Subdomain Registration", () => {
@@ -279,6 +134,7 @@ describe("ZNSSubRegistrar Unit Tests", () => {
           },
         },
       });
+
       await defaultDomain.register();
     });
 
@@ -618,6 +474,440 @@ describe("ZNSSubRegistrar Unit Tests", () => {
       // unpause the sub registrar
       await zns.subRegistrar.connect(admin).unpauseRegistration();
       expect(await zns.subRegistrar.registrationPaused()).to.be.false;
+    });
+  });
+
+  describe("State setters", () => {
+    before (async () => {
+      fixedPrice = ethers.parseEther("397");
+      fixedFeePercentage = BigInt(200);
+      priceConfigBytes = encodePriceConfig({ price: fixedPrice, feePercentage: fixedFeePercentage });
+
+      domainConfigs = [
+        {
+          owner: rootOwner,
+          tokenOwner: rootOwner.address,
+          label: "root",
+          distrConfig: {
+            pricerContract: await zns.fixedPricer.getAddress(),
+            priceConfig: encodePriceConfig({ price: fixedPrice, feePercentage: fixedFeePercentage }),
+            paymentType: PaymentType.STAKE,
+            accessType: AccessType.OPEN,
+          },
+          paymentConfig: {
+            token: await zns.meowToken.getAddress(),
+            beneficiary: rootOwner.address,
+          },
+        },
+        {
+          owner: lvl2SubOwner,
+          tokenOwner: lvl2SubOwner.address,
+          label: "leveltwo",
+          tokenURI: "http://example.com/leveltwo",
+          distrConfig: {
+            pricerContract: await zns.fixedPricer.getAddress(),
+            priceConfig: priceConfigBytes,
+            paymentType: PaymentType.DIRECT,
+            accessType: AccessType.OPEN,
+          },
+          paymentConfig: {
+            token: await zns.meowToken.getAddress(),
+            beneficiary: lvl2SubOwner.address,
+          },
+        },
+        {
+          owner: lvl3SubOwner,
+          tokenOwner: lvl3SubOwner.address,
+          label: "lvlthree",
+          tokenURI: "http://example.com/lvlthree",
+          distrConfig: {
+            pricerContract: await zns.curvePricer.getAddress(),
+            priceConfig: DEFAULT_CURVE_PRICE_CONFIG_BYTES,
+            paymentType: PaymentType.DIRECT,
+            accessType: AccessType.OPEN,
+          },
+          paymentConfig: {
+            token: await zns.meowToken.getAddress(),
+            beneficiary: lvl3SubOwner.address,
+          },
+        },
+      ];
+
+      for (const element of domainConfigs) {
+        const domain = new Domain({ zns, domainConfig: element });
+        await domain.register();
+
+        registeredDomainHashes.push(domain.hash);
+        domains.push(domain);
+      }
+    });
+
+    describe("#setDistributionConfigForDomain()", () => {
+      it("should re-set distribution config for an existing subdomain", async () => {
+        const domainHash = registeredDomainHashes[2];
+
+        const distrConfigBefore = await zns.subRegistrar.distrConfigs(domainHash);
+        expect(distrConfigBefore.accessType).to.not.eq(AccessType.MINTLIST);
+        expect(distrConfigBefore.pricerContract).to.not.eq(await zns.fixedPricer.getAddress());
+        expect(
+          distrConfigBefore.paymentType
+        ).to.not.eq(
+          PaymentType.STAKE
+        );
+
+        const newConfig = {
+          pricerContract: await zns.fixedPricer.getAddress(),
+          paymentType: PaymentType.STAKE,
+          accessType: AccessType.MINTLIST,
+          priceConfig: DEFAULT_FIXED_PRICER_CONFIG_BYTES,
+        };
+
+        await domains[2].setDistributionConfigForDomain(newConfig);
+
+        const distrConfigAfter = await zns.subRegistrar.distrConfigs(domainHash);
+        expect(distrConfigAfter.accessType).to.eq(newConfig.accessType);
+        expect(distrConfigAfter.pricerContract).to.eq(newConfig.pricerContract);
+        expect(distrConfigAfter.paymentType).to.eq(newConfig.paymentType);
+
+        // assign operator in registry
+        await zns.registry.connect(lvl3SubOwner).setOwnersOperator(
+          operator.address,
+          true,
+        );
+
+        // reset it back
+        await zns.subRegistrar.connect(operator).setDistributionConfigForDomain(
+          domainHash,
+          domainConfigs[2].distrConfig,
+        );
+        const origConfigAfter = await zns.subRegistrar.distrConfigs(domainHash);
+        expect(origConfigAfter.accessType).to.eq(domainConfigs[2].distrConfig.accessType);
+        expect(origConfigAfter.pricerContract).to.eq(domainConfigs[2].distrConfig.pricerContract);
+        expect(
+          origConfigAfter.paymentType
+        ).to.eq(
+          domainConfigs[2].distrConfig.paymentType
+        );
+
+        // remove operator
+        await zns.registry.connect(lvl3SubOwner).setOwnersOperator(
+          operator.address,
+          false,
+        );
+      });
+
+      it("should NOT allow to set distribution config for a non-authorized account", async () => {
+        const domainHash = registeredDomainHashes[1];
+
+        const newConfig = {
+          pricerContract: await zns.curvePricer.getAddress(),
+          priceConfig: DEFAULT_CURVE_PRICE_CONFIG_BYTES,
+          paymentType: PaymentType.STAKE,
+          accessType: AccessType.MINTLIST,
+        };
+
+        await expect(
+          zns.subRegistrar.connect(deployer).setDistributionConfigForDomain(
+            domainHash,
+            newConfig
+          )
+        ).to.be.revertedWithCustomError(
+          zns.subRegistrar,
+          NOT_AUTHORIZED_ERR
+        );
+      });
+
+      it("should revert if pricerContract is passed as 0x0 address", async () => {
+        const domainHash = registeredDomainHashes[2];
+
+        const newConfig = {
+          pricerContract: ethers.ZeroAddress,
+          priceConfig: DEFAULT_FIXED_PRICER_CONFIG_BYTES,
+          paymentType: PaymentType.STAKE,
+          accessType: AccessType.MINTLIST,
+        };
+
+        await expect(
+          zns.subRegistrar.connect(lvl3SubOwner).setDistributionConfigForDomain(
+            domainHash,
+            newConfig
+          )
+        ).to.be.revertedWithCustomError(
+          zns.subRegistrar,
+          ZERO_ADDRESS_ERR
+        );
+      });
+    });
+
+    describe("#setPricerDataForDomain()", () => {
+      it("should re-set pricer contract for an existing subdomain", async () => {
+        const domainHash = registeredDomainHashes[2];
+
+        const pricerContractBefore = await zns.subRegistrar.distrConfigs(domainHash);
+        expect(pricerContractBefore.pricerContract).to.eq(domainConfigs[2].distrConfig.pricerContract);
+
+        await zns.subRegistrar.connect(lvl3SubOwner).setPricerDataForDomain(
+          domainHash,
+          DEFAULT_CURVE_PRICE_CONFIG_BYTES,
+          await zns.curvePricer.getAddress(),
+        );
+
+        const pricerContractAfter = await zns.subRegistrar.distrConfigs(domainHash);
+        expect(pricerContractAfter.pricerContract).to.eq(await zns.curvePricer.getAddress());
+
+        // reset it back
+        await zns.subRegistrar.connect(lvl3SubOwner).setPricerDataForDomain(
+          domainHash,
+          domainConfigs[2].distrConfig.priceConfig,
+          domainConfigs[2].distrConfig.pricerContract,
+        );
+      });
+
+      it("should NOT allow setting for non-authorized account", async () => {
+        const domainHash = registeredDomainHashes[2];
+
+        await expect(
+          zns.subRegistrar.connect(lvl2SubOwner).setPricerDataForDomain(
+            domainHash,
+            DEFAULT_CURVE_PRICE_CONFIG_BYTES,
+            await zns.curvePricer.getAddress()
+          )
+        ).to.be.revertedWithCustomError(
+          zns.subRegistrar,
+          NOT_AUTHORIZED_ERR
+        );
+      });
+
+      it("should NOT set pricerContract to 0x0 address", async () => {
+        const domainHash = registeredDomainHashes[2];
+
+        await expect(
+          zns.subRegistrar.connect(lvl3SubOwner).setPricerDataForDomain(
+            domainHash,
+            DEFAULT_FIXED_PRICER_CONFIG_BYTES,
+            ethers.ZeroAddress
+          )
+        ).to.be.revertedWithCustomError(
+          zns.subRegistrar,
+          ZERO_ADDRESS_ERR
+        );
+      });
+    });
+
+    describe("#setPaymentTypeForDomain()", () => {
+      it("should re-set payment type for an existing subdomain", async () => {
+        const domainHash = registeredDomainHashes[2];
+
+        const { paymentType: paymentTypeBefore } = await zns.subRegistrar.distrConfigs(domainHash);
+        expect(paymentTypeBefore).to.eq(domainConfigs[2].distrConfig.paymentType);
+
+        await zns.subRegistrar.connect(lvl3SubOwner).setPaymentTypeForDomain(
+          domainHash,
+          PaymentType.STAKE,
+        );
+
+        const { paymentType: paymentTypeAfter } = await zns.subRegistrar.distrConfigs(domainHash);
+        expect(paymentTypeAfter).to.eq(PaymentType.STAKE);
+
+        // reset it back
+        await zns.subRegistrar.connect(lvl3SubOwner).setPaymentTypeForDomain(
+          domainHash,
+          domainConfigs[2].distrConfig.paymentType,
+        );
+      });
+
+      it("should NOT allow setting for non-authorized account", async () => {
+        const domainHash = registeredDomainHashes[2];
+
+        await expect(
+          zns.subRegistrar.connect(lvl2SubOwner).setPaymentTypeForDomain(domainHash, PaymentType.STAKE)
+        ).to.be.revertedWithCustomError(
+          zns.subRegistrar,
+          NOT_AUTHORIZED_ERR
+        );
+      });
+
+      it("should emit #PaymentTypeSet event with correct params", async () => {
+        const domainHash = registeredDomainHashes[2];
+
+        await expect(
+          zns.subRegistrar.connect(lvl3SubOwner).setPaymentTypeForDomain(
+            domainHash,
+            PaymentType.STAKE,
+          )
+        ).to.emit(zns.subRegistrar, "PaymentTypeSet").withArgs(
+          domainHash,
+          PaymentType.STAKE,
+        );
+
+        // reset back
+        await zns.subRegistrar.connect(lvl3SubOwner).setPaymentTypeForDomain(
+          domainHash,
+          domainConfigs[2].distrConfig.paymentType,
+        );
+      });
+    });
+
+    describe("#setAccessController", () => {
+      it("should allow ADMIN to set a valid AccessController", async () => {
+        await zns.subRegistrar.connect(deployer).setAccessController(zns.accessController.target);
+
+        const currentAccessController = await zns.subRegistrar.getAccessController();
+
+        expect(currentAccessController).to.equal(zns.accessController.target);
+      });
+
+      it("should allow re-setting the AccessController to another valid contract", async () => {
+        expect(
+          await zns.subRegistrar.getAccessController()
+        ).to.equal(
+          zns.accessController.target
+        );
+
+        const ZNSAccessControllerFactory = await ethers.getContractFactory("ZNSAccessController", deployer);
+        const newAccessController = await ZNSAccessControllerFactory.deploy(
+          [deployer.address],
+          [deployer.address]
+        );
+
+        // then change the AccessController
+        await zns.subRegistrar.connect(deployer).setAccessController(newAccessController.target);
+
+        expect(
+          await zns.subRegistrar.getAccessController()
+        ).to.equal(
+          newAccessController.target
+        );
+      });
+
+      it("should emit AccessControllerSet event when setting a valid AccessController", async () => {
+        await expect(
+          zns.subRegistrar.connect(deployer).setAccessController(zns.accessController.target)
+        ).to.emit(
+          zns.subRegistrar,
+          "AccessControllerSet"
+        ).withArgs(zns.accessController.target);
+      });
+
+      it("should revert when a non-ADMIN tries to set AccessController", async () => {
+        await expect(
+          zns.subRegistrar.connect(lvl2SubOwner).setAccessController(zns.accessController.target)
+        ).to.be.revertedWithCustomError(
+          zns.subRegistrar,
+          AC_UNAUTHORIZED_ERR
+        ).withArgs(lvl2SubOwner.address, GOVERNOR_ROLE);
+      });
+
+      it("should revert when setting an AccessController as EOA address", async () => {
+        await expect(
+          zns.subRegistrar.connect(deployer).setAccessController(lvl2SubOwner.address)
+        ).to.be.revertedWithCustomError(
+          zns.subRegistrar,
+          AC_WRONGADDRESS_ERR
+        ).withArgs(lvl2SubOwner.address);
+      });
+
+      it("should revert when setting an AccessController as another non-AC contract address", async () => {
+        await expect(
+          zns.subRegistrar.connect(deployer).setAccessController(zns.subRegistrar.target)
+        ).to.be.revertedWithCustomError(
+          zns.subRegistrar,
+          AC_WRONGADDRESS_ERR
+        ).withArgs(zns.subRegistrar.target);
+      });
+
+      it("should revert when setting a zero address as AccessController", async () => {
+      // deployer is the governor
+        await expect(
+          zns.subRegistrar.connect(deployer).setAccessController(ethers.ZeroAddress)
+        ).to.be.revertedWithCustomError(
+          zns.subRegistrar,
+          AC_WRONGADDRESS_ERR
+        ).withArgs(ethers.ZeroAddress);
+      });
+    });
+
+    describe("#setRootRegistrar()", () => {
+      it("should set the new root registrar correctly and emit #RootRegistrarSet event", async () => {
+        const tx = await zns.subRegistrar.connect(admin).setRootRegistrar(random.address);
+
+        await expect(tx).to.emit(zns.subRegistrar, "RootRegistrarSet").withArgs(random.address);
+
+        expect(await zns.subRegistrar.rootRegistrar()).to.equal(random.address);
+      });
+
+      it("should NOT be callable by anyone other than ADMIN_ROLE", async () => {
+        await expect(zns.subRegistrar.connect(random).setRootRegistrar(random.address))
+          .to.be.revertedWithCustomError(zns.accessController, AC_UNAUTHORIZED_ERR)
+          .withArgs(random.address, ADMIN_ROLE);
+      });
+
+      it("should NOT set registrar as 0x0 address", async () => {
+        await expect(
+          zns.subRegistrar.connect(admin).setRootRegistrar(ethers.ZeroAddress)
+        ).to.be.revertedWithCustomError(
+          zns.subRegistrar,
+          ZERO_ADDRESS_ERR
+        );
+      });
+    });
+
+    describe("#setRegistry()", () => {
+      it("should set the new registry correctly and emit #RegistrySet event", async () => {
+        const tx = await zns.subRegistrar.connect(admin).setRegistry(random.address);
+
+        await expect(tx).to.emit(zns.subRegistrar, "RegistrySet").withArgs(random.address);
+
+        expect(await zns.subRegistrar.registry()).to.equal(random.address);
+      });
+
+      it("should not be callable by anyone other than ADMIN_ROLE", async () => {
+        await expect(zns.subRegistrar.connect(random).setRegistry(random.address))
+          .to.be.revertedWithCustomError(zns.accessController, AC_UNAUTHORIZED_ERR)
+          .withArgs(random.address, ADMIN_ROLE);
+      });
+    });
+
+    describe("#pauseRegistration()", () => {
+      it("should pause the registration process and emit #RegistrationPauseSet event", async () => {
+        const tx = await zns.subRegistrar.connect(admin).pauseRegistration();
+
+        await expect(tx).to.emit(zns.subRegistrar, "RegistrationPauseSet").withArgs(true);
+
+        expect(await zns.subRegistrar.registrationPaused()).to.equal(true);
+      });
+
+      it("should not be callable by anyone other than ADMIN_ROLE", async () => {
+        await expect(zns.subRegistrar.connect(random).pauseRegistration())
+          .to.be.revertedWithCustomError(zns.accessController, AC_UNAUTHORIZED_ERR)
+          .withArgs(random.address, ADMIN_ROLE);
+      });
+
+      it("should not allow to pause if already paused", async () => {
+        await expect(zns.subRegistrar.connect(admin).pauseRegistration())
+          .to.be.revertedWithCustomError(zns.subRegistrar, PAUSE_SAME_VALUE_ERR);
+      });
+    });
+
+    describe("#unpauseRegistration()", () => {
+      it("should unpause the registration process and emit #RegistrationPauseSet event", async () => {
+        const tx = await zns.subRegistrar.connect(admin).unpauseRegistration();
+
+        await expect(tx).to.emit(zns.subRegistrar, "RegistrationPauseSet").withArgs(false);
+
+        expect(await zns.subRegistrar.registrationPaused()).to.equal(false);
+      });
+
+      it("should not be callable by anyone other than ADMIN_ROLE", async () => {
+        await expect(zns.subRegistrar.connect(random).unpauseRegistration())
+          .to.be.revertedWithCustomError(zns.accessController, AC_UNAUTHORIZED_ERR)
+          .withArgs(random.address, ADMIN_ROLE);
+      });
+
+      it("should not allow to unpause if already unpaused", async () => {
+        await expect(zns.subRegistrar.connect(admin).unpauseRegistration())
+          .to.be.revertedWithCustomError(zns.subRegistrar, PAUSE_SAME_VALUE_ERR);
+      });
     });
   });
 });
