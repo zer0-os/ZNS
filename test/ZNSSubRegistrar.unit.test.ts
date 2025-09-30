@@ -99,6 +99,8 @@ describe.only("ZNSSubRegistrar Unit Tests", () => {
       ].map(async ({ address }) =>
         zns.meowToken.mint(address, ethers.parseEther("1000000000000000000000000")))
     );
+
+    await zns.meowToken.connect(specificSubOwner).approve(await zns.treasury.getAddress(), ethers.MaxUint256);
   });
 
   it("Should NOT let initialize the implementation contract", async () => {
