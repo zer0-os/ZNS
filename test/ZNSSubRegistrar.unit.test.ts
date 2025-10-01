@@ -599,7 +599,7 @@ describe("ZNSSubRegistrar Unit Tests", () => {
       });
 
       it("should NOT allow to set distribution config for a non-authorized account", async () => {
-        const domainHash = registeredDomainHashes[1];
+        const domain = domains[1];
 
         const newConfig = {
           pricerContract: await zns.curvePricer.getAddress(),
@@ -609,10 +609,10 @@ describe("ZNSSubRegistrar Unit Tests", () => {
         };
 
         await expect(
-          zns.subRegistrar.connect(deployer).setDistributionConfigForDomain(
-            domainHash,
-            newConfig
-          )
+          domain.setDistributionConfigForDomain({
+            distrConfig: newConfig,
+            executor: deployer,
+          })
         ).to.be.revertedWithCustomError(
           zns.subRegistrar,
           NOT_AUTHORIZED_ERR
@@ -620,7 +620,7 @@ describe("ZNSSubRegistrar Unit Tests", () => {
       });
 
       it("should revert if pricerContract is passed as 0x0 address", async () => {
-        const domainHash = registeredDomainHashes[2];
+        const domain = domains[2];
 
         const newConfig = {
           pricerContract: ethers.ZeroAddress,
@@ -630,10 +630,10 @@ describe("ZNSSubRegistrar Unit Tests", () => {
         };
 
         await expect(
-          zns.subRegistrar.connect(lvl3SubOwner).setDistributionConfigForDomain(
-            domainHash,
-            newConfig
-          )
+          domain.setDistributionConfigForDomain({
+            distrConfig: newConfig,
+            executor: lvl3SubOwner,
+          })
         ).to.be.revertedWithCustomError(
           zns.subRegistrar,
           ZERO_ADDRESS_ERR
@@ -666,14 +666,14 @@ describe("ZNSSubRegistrar Unit Tests", () => {
       });
 
       it("should NOT allow setting for non-authorized account", async () => {
-        const domainHash = registeredDomainHashes[2];
+        const domain = domains[2];
 
         await expect(
-          zns.subRegistrar.connect(lvl2SubOwner).setPricerDataForDomain(
-            domainHash,
-            DEFAULT_CURVE_PRICE_CONFIG_BYTES,
-            await zns.curvePricer.getAddress()
-          )
+          domain.setPricerDataForDomain({
+            priceConfig: DEFAULT_CURVE_PRICE_CONFIG,
+            pricerContract: await zns.curvePricer.getAddress(),
+            executor: lvl2SubOwner,
+          })
         ).to.be.revertedWithCustomError(
           zns.subRegistrar,
           NOT_AUTHORIZED_ERR
@@ -681,14 +681,14 @@ describe("ZNSSubRegistrar Unit Tests", () => {
       });
 
       it("should NOT set pricerContract to 0x0 address", async () => {
-        const domainHash = registeredDomainHashes[2];
+        const domain = domains[2];
 
         await expect(
-          zns.subRegistrar.connect(lvl3SubOwner).setPricerDataForDomain(
-            domainHash,
-            DEFAULT_FIXED_PRICER_CONFIG_BYTES,
-            ethers.ZeroAddress
-          )
+          domain.setPricerDataForDomain({
+            priceConfig: DEFAULT_CURVE_PRICE_CONFIG,
+            pricerContract: ethers.ZeroAddress,
+            executor: lvl3SubOwner,
+          })
         ).to.be.revertedWithCustomError(
           zns.subRegistrar,
           ZERO_ADDRESS_ERR
@@ -698,31 +698,34 @@ describe("ZNSSubRegistrar Unit Tests", () => {
 
     describe("#setPaymentTypeForDomain()", () => {
       it("should re-set payment type for an existing subdomain", async () => {
-        const domainHash = registeredDomainHashes[2];
+        const domain = domains[2];
 
-        const { paymentType: paymentTypeBefore } = await zns.subRegistrar.distrConfigs(domainHash);
+        const { paymentType: paymentTypeBefore } = await domain.getDistributionConfig();
         expect(paymentTypeBefore).to.eq(domainConfigs[2].distrConfig?.paymentType);
 
-        await zns.subRegistrar.connect(lvl3SubOwner).setPaymentTypeForDomain(
-          domainHash,
-          PaymentType.STAKE,
-        );
+        await domain.setPaymentTypeForDomain({
+          paymentType: PaymentType.STAKE,
+          executor: lvl3SubOwner,
+        });
 
-        const { paymentType: paymentTypeAfter } = await zns.subRegistrar.distrConfigs(domainHash);
+        const { paymentType: paymentTypeAfter } = await domain.getDistributionConfig();
         expect(paymentTypeAfter).to.eq(PaymentType.STAKE);
 
         // reset it back
-        await zns.subRegistrar.connect(lvl3SubOwner).setPaymentTypeForDomain(
-          domainHash,
-          domainConfigs[2].distrConfig?.paymentType as bigint,
-        );
+        await domain.setPaymentTypeForDomain({
+          paymentType: domainConfigs[2].distrConfig?.paymentType as bigint,
+          executor: lvl3SubOwner,
+        });
       });
 
       it("should NOT allow setting for non-authorized account", async () => {
-        const domainHash = registeredDomainHashes[2];
+        const domain = domains[2];
 
         await expect(
-          zns.subRegistrar.connect(lvl2SubOwner).setPaymentTypeForDomain(domainHash, PaymentType.STAKE)
+          domain.setPaymentTypeForDomain({
+            paymentType: PaymentType.STAKE,
+            executor: lvl2SubOwner,
+          })
         ).to.be.revertedWithCustomError(
           zns.subRegistrar,
           NOT_AUTHORIZED_ERR
@@ -730,23 +733,23 @@ describe("ZNSSubRegistrar Unit Tests", () => {
       });
 
       it("should emit #PaymentTypeSet event with correct params", async () => {
-        const domainHash = registeredDomainHashes[2];
+        const domain = domains[2];
 
         await expect(
-          zns.subRegistrar.connect(lvl3SubOwner).setPaymentTypeForDomain(
-            domainHash,
-            PaymentType.STAKE,
-          )
+          domain.setPaymentTypeForDomain({
+            paymentType: PaymentType.STAKE,
+            executor: lvl3SubOwner,
+          })
         ).to.emit(zns.subRegistrar, "PaymentTypeSet").withArgs(
-          domainHash,
+          domain.hash,
           PaymentType.STAKE,
         );
 
         // reset back
-        await zns.subRegistrar.connect(lvl3SubOwner).setPaymentTypeForDomain(
-          domainHash,
-          domainConfigs[2].distrConfig?.paymentType as bigint,
-        );
+        await domain.setPaymentTypeForDomain({
+          paymentType: domainConfigs[2].distrConfig?.paymentType as bigint,
+          executor: lvl3SubOwner,
+        });
       });
     });
 
