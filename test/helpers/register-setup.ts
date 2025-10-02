@@ -76,7 +76,6 @@ export const fundApprove = async ({
   const { token: tokenAddress } = await zns.treasury.paymentConfigs(parentHash);
   const tokenContract = getTokenContract(tokenAddress, user);
 
-
   const rootPriceConfig = await zns.rootRegistrar.rootPriceConfig();
   const protocolFee = await zns.curvePricer.getFeeForPrice(rootPriceConfig, price + parentFee);
   const totalPrice = price + parentFee + protocolFee;

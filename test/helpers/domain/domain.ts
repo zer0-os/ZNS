@@ -145,7 +145,10 @@ export default class Domain {
     }));
   }
 
-  async register (executor ?: SignerWithAddress) : Promise<ContractTransactionResponse> {
+  async register (
+    executor ?: SignerWithAddress,
+    shouldMintAndApprove = true,
+  ) : Promise<ContractTransactionResponse> {
     const {
       zns,
       owner,
@@ -163,7 +166,9 @@ export default class Domain {
     const caller = executor ? executor : owner;
 
     // mint and approve strict amount of tokens for domain registration
-    await this.mintAndApproveForDomain(caller);
+    if (shouldMintAndApprove) {
+      await this.mintAndApproveForDomain(caller);
+    }
 
     if (isRoot) {
       txPromise = await zns.rootRegistrar.connect(caller).registerRootDomain({
@@ -298,9 +303,11 @@ export default class Domain {
       } else {
         await this.zns.subRegistrar.connect(executor ? executor : this.owner).setPricerDataForDomain(
           this.hash,
-          encodePriceConfig(priceConfig),
+          encodePriceConfig(priceConfig as ICurvePriceConfig | IFixedPriceConfig),
           pricerContract ? pricerContract : this.distrConfig.pricerContract
         );
+
+        this.priceConfig = priceConfig as ICurvePriceConfig | IFixedPriceConfig;
       }
     } else {
       throw new Error("Domain Helper: priceConfig is not specified");
@@ -313,16 +320,22 @@ export default class Domain {
   } : {
     paymentType : bigint;
     executor ?: SignerWithAddress;
-  }) : Promise<ContractTransactionResponse | undefined> {
+  }) {
+    let tx : ContractTransactionResponse | undefined;
+
     if (Object.values(PaymentType).includes(paymentType)) {
-      return this.zns.subRegistrar.connect(executor ? executor : this.owner).setPaymentTypeForDomain(
+      tx = await this.zns.subRegistrar.connect(executor ? executor : this.owner).setPaymentTypeForDomain(
         this.hash,
         paymentType,
       );
+    } else {
+      throw new Error("Domain Helper: Invalid payment type provided");
     }
 
     // updating local var
     this.distrConfig.paymentType = paymentType;
+
+    return tx;
   }
 
   async setAccessTypeForDomain ({
@@ -367,13 +380,15 @@ export default class Domain {
     executor,
     domainOwner,
     tokenOwner,
+    shouldMintAndApprove = true,
   } : {
     executor ?: SignerWithAddress;
     domainOwner ?: string;
     tokenOwner ?: string;
+    shouldMintAndApprove ?: boolean;
   }) : Promise<void> {
     const caller = executor ? executor : this.owner;
-    const txPromise = await this.register(caller);
+    const txPromise = await this.register(caller, shouldMintAndApprove);
 
     if (!domainOwner) {
       domainOwner = caller.address;
