@@ -283,32 +283,32 @@ export default class Domain {
     pricerContract,
     executor,
   } : {
-    priceConfig ?: ICurvePriceConfig | IFixedPriceConfig;
-    pricerContract ?: string | Addressable;
+    priceConfig ?: ICurvePriceConfig | IFixedPriceConfig | string;
+    pricerContract ?: string;
     executor ?: SignerWithAddress;
   }) {
     if (priceConfig ||
       this.priceConfig !== undefined ||
       Object.keys(this.priceConfig).length === 0
     ) {
+      const args = [this.hash];
+
       if (typeof priceConfig === "string") {
-        await this.zns.subRegistrar.connect(executor ? executor : this.owner).setPricerDataForDomain(
-          this.hash,
-          priceConfig,
-          pricerContract ? pricerContract : this.distrConfig.pricerContract
-        );
+        args.push(priceConfig);
 
         this.priceConfig = decodePriceConfig(priceConfig);
 
       } else {
-        await this.zns.subRegistrar.connect(executor ? executor : this.owner).setPricerDataForDomain(
-          this.hash,
-          encodePriceConfig(priceConfig as ICurvePriceConfig | IFixedPriceConfig),
-          pricerContract ? pricerContract : this.distrConfig.pricerContract
-        );
+        args.push(encodePriceConfig(priceConfig as ICurvePriceConfig | IFixedPriceConfig));
 
         this.priceConfig = priceConfig as ICurvePriceConfig | IFixedPriceConfig;
       }
+
+      args.push(pricerContract ? pricerContract : this.distrConfig.pricerContract);
+
+      await this.zns.subRegistrar.connect(executor ? executor : this.owner).setPricerDataForDomain(
+        ...args
+      );
     } else {
       throw new Error("Domain Helper: priceConfig is not specified");
     }
