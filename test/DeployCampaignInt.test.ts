@@ -42,7 +42,6 @@ import { getConfig } from "../src/deploy/campaign/get-config";
 import { ethers } from "ethers";
 import { promisify } from "util";
 import { exec } from "child_process";
-import { saveTag } from "../src/utils/git-tag/save-tag";
 import { IZNSCampaignConfig, IZNSContracts } from "../src/deploy/campaign/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { getZnsMongoAdapter } from "../src/deploy/mongo";

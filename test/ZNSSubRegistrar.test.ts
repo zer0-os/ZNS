@@ -27,7 +27,6 @@ import {
   AC_UNAUTHORIZED_ERR,
   INSUFFICIENT_BALANCE_ERC_ERR,
   INSUFFICIENT_ALLOWANCE_ERC_ERR,
-  ZERO_ADDRESS_ERR,
   DOMAIN_EXISTS_ERR,
   SENDER_NOT_APPROVED_ERR,
   encodePriceConfig,
@@ -123,7 +122,7 @@ describe("ZNSSubRegistrar", () => {
       };
 
       defaultDistrConfig = {
-        pricerContract: zns.fixedPricer.target,
+        pricerContract: zns.fixedPricer.target as string,
         paymentType: PaymentType.DIRECT,
         accessType: AccessType.OPEN,
         priceConfig: encodePriceConfig(rootPriceConfig),

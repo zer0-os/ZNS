@@ -6,13 +6,18 @@ import {
   AC_UNAUTHORIZED_ERR,
   AC_WRONGADDRESS_ERR,
   AccessType,
-  ADMIN_ROLE, decodePriceConfig, DEFAULT_CURVE_PRICE_CONFIG, DEFAULT_CURVE_PRICE_CONFIG_BYTES, DEFAULT_FIXED_PRICER_CONFIG_BYTES, DEFAULT_TOKEN_URI, deployZNS,
+  ADMIN_ROLE,
+  decodePriceConfig,
+  DEFAULT_CURVE_PRICE_CONFIG,
+  DEFAULT_CURVE_PRICE_CONFIG_BYTES,
+  DEFAULT_FIXED_PRICER_CONFIG_BYTES,
+  DEFAULT_TOKEN_URI,
+  deployZNS,
   distrConfigEmpty,
   encodePriceConfig,
   getProxyImplAddress,
   GOVERNOR_ROLE,
   IDistributionConfig,
-  IFixedPriceConfig,
   INITIALIZED_ERR,
   ISubRegistrarConfig,
   NOT_AUTHORIZED_ERR,
@@ -28,6 +33,7 @@ import Domain from "./helpers/domain/domain";
 import { getDomainRegisteredEvents } from "./helpers/events";
 import { registrationWithSetup } from "./helpers/register-setup";
 import { IFullDomainConfig } from "./helpers/domain/types";
+import { IFixedPriceConfig } from "../src/deploy/missions/types";
 
 
 describe("ZNSSubRegistrar Unit Tests", () => {
@@ -80,7 +86,7 @@ describe("ZNSSubRegistrar Unit Tests", () => {
     };
 
     defaultDistrConfig = {
-      pricerContract: zns.fixedPricer.target,
+      pricerContract: zns.fixedPricer.target as string,
       paymentType: PaymentType.DIRECT,
       accessType: AccessType.OPEN,
       priceConfig: encodePriceConfig(rootPriceConfig),

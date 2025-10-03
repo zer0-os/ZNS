@@ -21,7 +21,6 @@ import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { fundApprove } from "../register-setup";
 import {
-  Addressable,
   ContractTransactionResponse,
 } from "ethers";
 import { expect } from "chai";
