@@ -905,7 +905,6 @@ describe("ZNSSubRegistrar", () => {
       configs : Array<IFullDomainConfig>;
       extrArray ?: Array<RegRes>;
       executor ?: SignerWithAddress;
-      // TODO dom: idk, am I right here?
     }) : Promise<void | Array<RegRes>> => {
       const resultArray = [];
       let domObj;

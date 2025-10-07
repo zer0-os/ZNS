@@ -22,6 +22,7 @@ import {
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { ICurvePriceConfig, IFixedPriceConfig } from "../../src/deploy/missions/types";
 import { IZNSContracts } from "../../src/deploy/campaign/types";
+import { Addressable } from "ethers";
 
 
 export type GeneralContractGetter = Promise<
@@ -80,7 +81,7 @@ export interface DeployZNSParams {
 }
 
 export interface IDistributionConfig {
-  pricerContract : string;
+  pricerContract : string | Addressable;
   priceConfig : string;
   paymentType : bigint;
   accessType : bigint;

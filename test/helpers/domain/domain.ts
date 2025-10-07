@@ -21,6 +21,7 @@ import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { fundApprove } from "../register-setup";
 import {
+  Addressable,
   ContractTransactionResponse,
 } from "ethers";
 import { expect } from "chai";
@@ -28,7 +29,6 @@ import { decodePriceConfig, encodePriceConfig } from "../pricing";
 
 
 export default class Domain {
-  // TODO dom: need to make a class with a method for every possible feature of ZNS contracts
   zns : IZNSContracts;
 
   hash : string;
@@ -283,34 +283,35 @@ export default class Domain {
     executor,
   } : {
     priceConfig ?: ICurvePriceConfig | IFixedPriceConfig | string;
-    pricerContract ?: string;
+    pricerContract ?: string | Addressable;
     executor ?: SignerWithAddress;
   }) {
-    if (priceConfig ||
-      this.priceConfig !== undefined ||
-      Object.keys(this.priceConfig).length === 0
-    ) {
-      const args = [this.hash];
-
-      if (typeof priceConfig === "string") {
-        args.push(priceConfig);
-
-        this.priceConfig = decodePriceConfig(priceConfig);
-
-      } else {
-        args.push(encodePriceConfig(priceConfig as ICurvePriceConfig | IFixedPriceConfig));
-
-        this.priceConfig = priceConfig as ICurvePriceConfig | IFixedPriceConfig;
-      }
-
-      args.push(pricerContract ? pricerContract : this.distrConfig.pricerContract);
-
-      await this.zns.subRegistrar.connect(executor ? executor : this.owner).setPricerDataForDomain(
-        ...args
-      );
-    } else {
+    if (!priceConfig && !this.priceConfig) {
       throw new Error("Domain Helper: priceConfig is not specified");
     }
+
+    const config =
+      typeof priceConfig === "string"
+        ? priceConfig
+        : encodePriceConfig(priceConfig ?? this.priceConfig);
+
+    this.priceConfig =
+      typeof priceConfig === "string"
+        ? decodePriceConfig(priceConfig)
+        : priceConfig ?? this.priceConfig;
+
+    const pricerAddr = pricerContract ?? this.distrConfig.pricerContract;
+
+    if (!this.hash || !config || !pricerAddr) {
+      throw new Error("Domain Helper: pricerData is not fully specified");
+    }
+
+    await this.zns.subRegistrar.connect(executor ?? this.owner).setPricerDataForDomain(
+      this.hash,
+      config,
+      pricerAddr,
+      {}
+    );
   }
 
   async setPaymentTypeForDomain ({
@@ -344,11 +345,13 @@ export default class Domain {
     accessType : bigint;
     executor ?: SignerWithAddress;
   }) : Promise<ContractTransactionResponse | undefined> {
-    if (!Object.values(AccessType).includes(accessType)) {
+    if (Object.values(AccessType).includes(accessType)) {
       return this.zns.subRegistrar.connect(executor ? executor : this.owner).setAccessTypeForDomain(
         this.hash,
         accessType,
       );
+    } else {
+      throw new Error("Domain Helper: Invalid access type provided");
     }
 
     // updating local var

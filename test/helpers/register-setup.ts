@@ -86,7 +86,14 @@ export const fundApprove = async ({
     await tokenContract.connect(user).mint(user.address, toMint);
   }
 
-  return tokenContract.connect(user).approve(await zns.treasury.getAddress(), totalPrice);
+  // return tokenContract.connect(user).approve(await zns.treasury.getAddress(), totalPrice);
+  const treasuryAddress = await zns.treasury.getAddress();
+  const allowance = await tokenContract.allowance(user.address, treasuryAddress);
+  if (allowance < totalPrice) {
+    return tokenContract.connect(user).approve(treasuryAddress, totalPrice);
+  }
+  // Allowance is sufficient, no need to approve
+  return undefined;
 };
 
 /**
