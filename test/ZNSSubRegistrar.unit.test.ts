@@ -36,6 +36,7 @@ import { IFullDomainConfig } from "./helpers/domain/types";
 import { IFixedPriceConfig } from "../src/deploy/missions/types";
 
 
+// Separated SubRegistrar tests
 describe("ZNSSubRegistrar Unit Tests", () => {
   let deployer : SignerWithAddress;
   let rootOwner : SignerWithAddress;
