@@ -11,7 +11,7 @@ ________________________________________________________
 ### [Smart Contract Docs](./docs/contracts)
 ### [Flow Diagrams](./docs/flows.md)
 
-**Full Protocol Documentation - [zero.study](https://www.zero.study/)**
+**Full Protocol Documentation - [Zero Docs](https://zer0-1.gitbook.io/zns)**
 ________________________________________________________
 
 ## About
