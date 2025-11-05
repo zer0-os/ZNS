@@ -3,10 +3,9 @@ import {
   IDistributionConfig,
   IRegisterWithSetupArgs,
   IPaymentConfig,
-  IZNSContractsLocal,
   DefaultRootRegistrationArgs,
 } from "./types";
-import { ContractTransactionReceipt, ethers } from "ethers";
+import { ContractTransactionReceipt, ContractTransactionResponse, ethers } from "ethers";
 import { getDomainHashFromEvent } from "./events";
 import { distrConfigEmpty, fullConfigEmpty, DEFAULT_TOKEN_URI, paymentConfigEmpty } from "./constants";
 import { getTokenContract } from "./tokens";
@@ -49,11 +48,11 @@ export const fundApprove = async ({
   user,
   domainLabel,
 } : {
-  zns : IZNSContractsLocal | IZNSContracts;
+  zns : IZNSContracts;
   parentHash ?: string;
   user : SignerWithAddress;
   domainLabel : string;
-}) => {
+}) : Promise<ContractTransactionResponse | undefined> => {
   let pricerContract;
   let priceConfig;
   parentHash = parentHash || ethers.ZeroHash;
@@ -64,7 +63,6 @@ export const fundApprove = async ({
   } else {
     ({ pricerContract, priceConfig } = await zns.subRegistrar.distrConfigs(parentHash));
   }
-
 
   let price = BigInt(0);
   let parentFee = BigInt(0);
@@ -81,14 +79,18 @@ export const fundApprove = async ({
 
   const rootPriceConfig = await zns.rootRegistrar.rootPriceConfig();
   const protocolFee = await zns.curvePricer.getFeeForPrice(rootPriceConfig, price + parentFee);
-  const toApprove = price + parentFee + protocolFee;
+  const totalPrice = price + parentFee + protocolFee;
 
   const userBalance = await tokenContract.balanceOf(user.address);
-  if (userBalance < toApprove) {
-    await tokenContract.connect(user).mint(user.address, toApprove);
+  if (userBalance < totalPrice) {
+    const toMint = totalPrice - userBalance;
+    await tokenContract.connect(user).mint(user.address, toMint);
   }
 
-  return tokenContract.connect(user).approve(await zns.treasury.getAddress(), toApprove);
+  const allowance = await tokenContract.allowance(user.address, await zns.treasury.getAddress());
+  if (allowance < totalPrice) {
+    return tokenContract.connect(user).approve(await zns.treasury.getAddress(), totalPrice);
+  }
 };
 
 /**
@@ -109,7 +111,7 @@ export const defaultSubdomainRegistration = async ({
   paymentConfig = paymentConfigEmpty,
 } : {
   user : SignerWithAddress;
-  zns : IZNSContractsLocal | IZNSContracts;
+  zns : IZNSContracts;
   parentHash : string;
   subdomainLabel : string;
   tokenOwner ?: string;
