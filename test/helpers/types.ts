@@ -21,8 +21,8 @@ import {
 } from "../../typechain";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { ICurvePriceConfig, IFixedPriceConfig } from "../../src/deploy/missions/types";
-import { Addressable } from "ethers";
 import { IZNSContracts } from "../../src/deploy/campaign/types";
+import { Addressable } from "ethers";
 
 
 export type GeneralContractGetter = Promise<

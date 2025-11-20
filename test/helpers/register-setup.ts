@@ -76,7 +76,6 @@ export const fundApprove = async ({
   const { token: tokenAddress } = await zns.treasury.paymentConfigs(parentHash);
   const tokenContract = getTokenContract(tokenAddress, user);
 
-
   const rootPriceConfig = await zns.rootRegistrar.rootPriceConfig();
   const protocolFee = await zns.curvePricer.getFeeForPrice(rootPriceConfig, price + parentFee);
   const totalPrice = price + parentFee + protocolFee;
@@ -87,10 +86,14 @@ export const fundApprove = async ({
     await tokenContract.connect(user).mint(user.address, toMint);
   }
 
-  const allowance = await tokenContract.allowance(user.address, await zns.treasury.getAddress());
+  // return tokenContract.connect(user).approve(await zns.treasury.getAddress(), totalPrice);
+  const treasuryAddress = await zns.treasury.getAddress();
+  const allowance = await tokenContract.allowance(user.address, treasuryAddress);
   if (allowance < totalPrice) {
-    return tokenContract.connect(user).approve(await zns.treasury.getAddress(), totalPrice);
+    return tokenContract.connect(user).approve(treasuryAddress, totalPrice);
   }
+  // Allowance is sufficient, no need to approve
+  return undefined;
 };
 
 /**
